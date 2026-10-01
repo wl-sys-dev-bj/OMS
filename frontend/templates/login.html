@@ -21,7 +21,7 @@
         <div class="container">
             <div
                 class="z-[1] absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-md p-6 bg-gray-600/20 rounded-lg shadow-md ">
-                <form method="POST">
+                <form action="{% url 'login' %}" method="POST">
                     {% csrf_token %}
                     <div class=" [&_label]:text-white [&_label]:mb-2 mb-4">
                         <label for="username">User Name:</label>
@@ -41,9 +41,7 @@
                     {% if messages %}
                     {% for message in messages %}
                     <div class="bg-red-500/20 p-2 rounded-md mt-4">
-                        {% if error %}
-                        <p class="text-red-500">{{ error }}</p>
-                        {% endif %}
+                        <p class="text-red-500">{{ message }}</p>
                     </div>
                     {% endfor %}
                     {% endif %}
