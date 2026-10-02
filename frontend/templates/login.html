@@ -1,4 +1,4 @@
-{% load static tailwind_tags %}
+{% load static %}
 
 <!DOCTYPE html>
 {% load static %}
@@ -8,69 +8,43 @@
     <title>Employee Login</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    {% tailwind_css %}
+    <link rel="stylesheet" href="{% static 'css/login.css' %}">
 </head>
 
 <body>
-    <section>
-        <video autoplay muted loop playsinline class="fixed top-0 left-0 w-full h-full object-cover z-[-1]">
-            <source src="{% static '/media/videos/bg-video.mp4' %}" type="video/mp4">
-        </video>
-        <div class="bg-red-200/10 h-screen w-screen  "></div>
-
-        <div class="container">
-            <div
-                class="z-[1] absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-md p-6 bg-gray-600/20 rounded-lg shadow-md ">
-                <form action="{% url 'login' %}" method="POST">
-                    {% csrf_token %}
-                    <div class=" [&_label]:text-white [&_label]:mb-2 mb-4">
-                        <label for="username">User Name:</label>
-                        <input type="text" name="username" id="username" class="border border-yellow-800 rounded-md p-2 w-full text-white outline-none [&::-webkit-inner-spin-button]:appearance-none
-           [&::-webkit-outer-spin-button]:appearance-none
-           [-moz-appearance:textfield]">
-                    </div>
-                    <div class="[&_label]:text-white [&_label]:mb-2 relative">
-                        <label for="password">Password:</label>
-                        <input type="password" name="password" id="password"
-                            class="border border-yellow-800 rounded-md p-2 w-full text-white outline-none">
-                        <!-- Toggle password visibility -->
-                        <button type="button" id="togglePassword" class="absolute right-2 max-h-14 top-1/2 transform">
-                            🙈
-                        </button>
-                    </div>
-                    {% if messages %}
+    <main class="login-page">
+        <div class="login-card">
+            <p class="eyebrow">OMS · PEOPLE OPERATIONS</p>
+            <h1>Welcome back</h1>
+            <p class="login-intro">Sign in to manage employee records, joining details, and billing.</p>
+            <form action="{% url 'login' %}" method="POST">
+                {% csrf_token %}
+                <label for="username">User name</label>
+                <input type="text" name="username" id="username" autocomplete="username" required>
+                <label for="password">Password</label>
+                <div class="password-field">
+                    <input type="password" name="password" id="password" autocomplete="current-password" required>
+                    <button type="button" id="togglePassword" aria-label="Show password">Show</button>
+                </div>
+                {% if messages %}
                     {% for message in messages %}
-                    <div class="bg-red-500/20 p-2 rounded-md mt-4">
-                        <p class="text-red-500">{{ message }}</p>
-                    </div>
+                    <p class="login-error" role="alert">{{ message }}</p>
                     {% endfor %}
-                    {% endif %}
-                    <div class="">
-                        <input type="submit" value="Login"
-                            class="bg-yellow-600 cursor-pointer hover:bg-yellow-700 transition-all duration-700 text-xl font-bold  text-white rounded-md p-2 w-full mt-4">
-                    </div>
-                    <div class="text-center mt-4">
-                        <a href="#" class="text-white hover:underline">Forgot Password?</a>
-                    </div>
-                </form>
-            </div>
-
+                {% endif %}
+                <button class="login-submit" type="submit">Sign in <span aria-hidden="true">→</span></button>
+            </form>
+            <p class="login-foot">Secure workforce administration</p>
         </div>
-    </section>
-
-
+    </main>
     <script>
         const password = document.getElementById("password");
         const togglePassword = document.getElementById("togglePassword");
 
         togglePassword.addEventListener("click", function () {
-            if (password.type === "password") {
-                password.type = "text";
-                togglePassword.textContent = "👁";
-            } else {
-                password.type = "password";
-                togglePassword.textContent = "🙈";
-            }
+            const visible = password.type === "password";
+            password.type = visible ? "text" : "password";
+            togglePassword.textContent = visible ? "Hide" : "Show";
+            togglePassword.setAttribute("aria-label", visible ? "Hide password" : "Show password");
         });
     </script>
 </body>

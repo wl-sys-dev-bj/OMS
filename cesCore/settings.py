@@ -44,20 +44,8 @@ CORE_FILE_APP = [
     'frontend',
 ]
 
-# tailwind and theme apps 
-STYLE_APPS = [
-    'tailwind',
-    'theme',
-]
-
 INSTALLED_APPS.extend(CORE_FILE_APP)
-INSTALLED_APPS.extend(STYLE_APPS)
-
-TAILWIND_APP_NAME = 'theme'
-
-  # Add django_browser_reload only in DEBUG mode
-if DEBUG:
-    INSTALLED_APPS += ["django_browser_reload"]
+INSTALLED_APPS += ['rest_framework']
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -67,7 +55,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'django_browser_reload.middleware.BrowserReloadMiddleware',
 ]
 
 ROOT_URLCONF = 'cesCore.urls'
@@ -75,7 +62,7 @@ ROOT_URLCONF = 'cesCore.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'frontend'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -135,12 +122,13 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 # Email
