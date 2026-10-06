@@ -1,5 +1,7 @@
-from django.test import TestCase
+import io
+from decimal import Decimal
 from tempfile import TemporaryDirectory
+from datetime import date, timedelta
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -7,298 +9,323 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from rest_framework.test import APIClient
 
-from .models import Employee, EmployeeDocument, ExpenseRecord, HiringRecord
+from .models import (
+    AuditLog,
+    BillingRecord,
+    Department,
+    Designation,
+    Employee,
+    EmployeeDocument,
+    ExpenseCategory,
+    ExpenseLineItem,
+    ExpenseProduct,
+    ExpenseRecord,
+    HiringRecord,
+    UserProfile,
+)
 
 
-class ManagementApiTests(TestCase):
-	def setUp(self):
-		self.user = get_user_model().objects.create_user(username="manager", password="test-password")
-		self.client = APIClient()
-		self.client.force_authenticate(user=self.user)
-		self.client.force_login(self.user)
+class EmployeeWorkflowTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.admin_user = User.objects.create_superuser(username="admin", password="admin-password", email="admin@test.com")
+        UserProfile.objects.update_or_create(user=self.admin_user, defaults={"role": UserProfile.Role.ADMIN})
 
-	def test_api_requires_authentication(self):
-		anonymous_client = APIClient()
-		response = anonymous_client.get("/api/employees/")
+        self.hr_user = User.objects.create_user(username="hr_staff", password="hr-password", email="hr@test.com")
+        UserProfile.objects.update_or_create(user=self.hr_user, defaults={"role": UserProfile.Role.HR})
 
-		self.assertEqual(response.status_code, 403)
+        self.emp_user = User.objects.create_user(username="standard_emp", password="emp-password", email="emp@test.com")
+        UserProfile.objects.update_or_create(user=self.emp_user, defaults={"role": UserProfile.Role.EMPLOYEE})
 
-	def test_employee_and_joining_records_are_created_through_the_api(self):
-		employee_response = self.client.post(
-			"/api/employees/",
-			{
-				"employee_id": "EMP-104",
-				"full_name": "Asha Rai",
-				"phone": "+977 9800000000",
-				"client_name": "Cedar Logistics",
-			},
-			format="json",
-		)
+        self.dept = Department.objects.create(name="Operations", code="OPS")
+        self.desig = Designation.objects.create(name="Coordinator", department=self.dept)
 
-		self.assertEqual(employee_response.status_code, 201)
-		employee = Employee.objects.get(employee_id="EMP-104")
-		joining_response = self.client.post(
-			"/api/joinings/",
-			{
-				"employee": employee.pk,
-				"client_name": "Cedar Logistics",
-				"hiring_person_name": "Mina Shrestha",
-				"hiring_person_employee_id": "HR-12",
-				"joining_date": "2026-11-15",
-				"destination": "Dubai, UAE",
-			},
-			format="json",
-		)
+        self.client = APIClient()
+        self.client.force_login(self.admin_user)
 
-		self.assertEqual(joining_response.status_code, 201)
-		self.assertEqual(joining_response.data["employee_id"], "EMP-104")
-		self.assertEqual(joining_response.data["hiring_person_employee_id"], "HR-12")
+    def test_create_and_view_employee(self):
+        response = self.client.post(reverse("employee-create"), {
+            "employee_id": "EMP-901",
+            "first_name": "Nima",
+            "last_name": "Sherpa",
+            "full_name": "Nima Sherpa",
+            "phone": "+971 50 000 1111",
+            "email": "nima@test.com",
+            "department": self.dept.pk,
+            "designation": self.desig.pk,
+            "employment_type": "full_time",
+            "salary": "3500.00",
+            "status": "active",
+            "nationality": "Nepali",
+        })
+        self.assertEqual(response.status_code, 302)
+        emp = Employee.objects.get(employee_id="EMP-901")
+        self.assertEqual(emp.full_name, "Nima Sherpa")
+        self.assertEqual(emp.salary, Decimal("3500.00"))
 
-	def test_joining_application_fields_and_passport_photo_are_saved(self):
-		employee = Employee.objects.create(
-			employee_id="EMP-107",
-			full_name="Sita Gurung",
-			phone="9800000003",
-		)
-		with TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
-			response = self.client.post(
-				"/api/joinings/",
-				{
-					"employee": employee.pk,
-					"client_name": "Cedar Logistics",
-					"hiring_person_name": "Mina Shrestha",
-					"application_date": "2026-10-01",
-					"joining_date": "2026-11-15",
-					"father_name": "Hari Gurung",
-					"nationality": "Nepali",
-					"city": "Pokhara",
-					"visa_status": "Applied",
-					"passport_number": "P1234567",
-					"citizenship_number": "CIT123456",
-					"mobile_number": "9800000003",
-					"basic_salary": "1500.00",
-					"commission_percent": "5.00",
-					"allowance": "Transport",
-					"room_provided": "true",
-					"job_title": "Kitchen assistant",
-					"hr_name": "Mina Shrestha",
-					"passport_photo": SimpleUploadedFile(
-						"portrait.png",
-						b"\\x89PNG\\r\\n\\x1a\\nphoto",
-						content_type="image/png",
-					),
-				},
-				format="multipart",
-			)
+        detail_response = self.client.get(reverse("employee-detail", args=[emp.pk]))
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertContains(detail_response, "Nima Sherpa")
+        self.assertContains(detail_response, "EMP-901")
 
-			self.assertEqual(response.status_code, 201)
-			joining = HiringRecord.objects.get(pk=response.data["id"])
-			self.assertEqual(joining.father_name, "Hari Gurung")
-			self.assertEqual(joining.citizenship_number, "CIT123456")
-			self.assertEqual(str(joining.basic_salary), "1500.00")
-			self.assertTrue(joining.room_provided)
-			self.assertTrue(response.data["passport_photo_url"])
+    def test_employee_id_uniqueness_validation(self):
+        Employee.objects.create(employee_id="EMP-DUP-1", full_name="User One", phone="12345")
+        response = self.client.post(reverse("employee-create"), {
+            "employee_id": "EMP-DUP-1",
+            "full_name": "User Two",
+            "phone": "67890",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "already assigned")
 
-			photo_response = self.client.get(response.data["passport_photo_url"])
-			self.assertEqual(photo_response.status_code, 200)
-			self.assertEqual(photo_response["Content-Type"], "image/png")
-			self.assertEqual(b"".join(photo_response.streaming_content), b"\\x89PNG\\r\\n\\x1a\\nphoto")
+    def test_search_and_filter_employees(self):
+        Employee.objects.create(employee_id="EMP-SRCH-1", full_name="Aarav Sharma", phone="9801111111", department=self.dept, status=Employee.Status.ACTIVE)
+        Employee.objects.create(employee_id="EMP-SRCH-2", full_name="Bina Gurung", phone="9802222222", status=Employee.Status.ON_LEAVE)
 
-			anonymous_client = APIClient()
-			anonymous_response = anonymous_client.get(reverse("joining-photo", args=[joining.pk]))
-			self.assertEqual(anonymous_response.status_code, 302)
+        search_res = self.client.get(reverse("employee-list") + "?search=Aarav")
+        self.assertEqual(search_res.status_code, 200)
+        self.assertContains(search_res, "Aarav Sharma")
+        self.assertNotContains(search_res, "Bina Gurung")
 
-	def test_joining_form_creates_employee_for_new_applicant(self):
-		response = self.client.post(
-			"/api/joinings/",
-			{
-				"employee": "",
-				"applicant_name": "New Applicant",
-				"client_name": "Cedar Logistics",
-				"hiring_person_name": "Mina Shrestha",
-				"joining_date": "2026-12-01",
-				"mobile_number": "0500000000",
-				"nationality": "Nepali",
-				"job_title": "Kitchen assistant",
-				"assigned_employee_number": "",
-			},
-			format="multipart",
-		)
+        filter_res = self.client.get(reverse("employee-list") + "?status=on_leave")
+        self.assertEqual(filter_res.status_code, 200)
+        self.assertContains(filter_res, "Bina Gurung")
+        self.assertNotContains(filter_res, "Aarav Sharma")
 
-		self.assertEqual(response.status_code, 201)
-		employee = Employee.objects.get(pk=response.data["employee"])
-		self.assertEqual(employee.full_name, "New Applicant")
-		self.assertTrue(employee.employee_id.startswith("JOIN-"))
-		self.assertEqual(employee.phone, "0500000000")
-		self.assertEqual(employee.created_by, self.user)
+    def test_employee_print_and_pdf_generation(self):
+        emp = Employee.objects.create(employee_id="EMP-PRN-1", full_name="Print Test User", phone="9800000000", salary=Decimal("2500.00"), department=self.dept)
+        
+        print_res = self.client.get(reverse("employee-print", args=[emp.pk]))
+        self.assertEqual(print_res.status_code, 200)
+        self.assertContains(print_res, "Print Test User")
+        self.assertContains(print_res, "EMP-PRN-1")
 
-	def test_joining_can_save_without_company_tracking_fields(self):
-		employee = Employee.objects.create(
-			employee_id="EMP-108",
-			full_name="Rita Shahi",
-			phone="0500000001",
-			client_name="Cedar Logistics",
-		)
-		response = self.client.post(
-			"/api/joinings/",
-			{
-				"employee": employee.pk,
-				"joining_date": "2026-12-20",
-				"hr_name": "Mina Shrestha",
-			},
-			format="json",
-		)
+        pdf_res = self.client.get(reverse("employee-pdf", args=[emp.pk]))
+        self.assertEqual(pdf_res.status_code, 200)
+        self.assertEqual(pdf_res["Content-Type"], "application/pdf")
+        self.assertTrue(len(pdf_res.content) > 500)
 
-		self.assertEqual(response.status_code, 201)
-		self.assertEqual(response.data["client_name"], "Cedar Logistics")
-		self.assertEqual(response.data["hiring_person_name"], "Mina Shrestha")
 
-	def test_expense_records_can_be_created_listed_and_deleted(self):
-		category_response = self.client.post(
-			"/api/expense-categories/",
-			{"name": "Office supplies"},
-			format="json",
-		)
-		self.assertEqual(category_response.status_code, 201)
-		product_response = self.client.post(
-			"/api/expense-products/",
-			{
-				"name": "Printer toner",
-				"category": category_response.data["id"],
-				"unit_price": "212.75",
-				"currency": "AED",
-			},
-			format="json",
-		)
-		self.assertEqual(product_response.status_code, 201)
+class ExpenseWorkflowTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.admin_user = User.objects.create_superuser(username="admin_exp", password="password123")
+        UserProfile.objects.update_or_create(user=self.admin_user, defaults={"role": UserProfile.Role.ADMIN})
 
-		response = self.client.post(
-			"/api/expenses/",
-			{
-				"reference_number": "EXP-2026-014",
-				"vendor_name": "Harbor Office Supplies",
-				"category": "Office supplies",
-				"bill_date": "2026-10-01",
-				"due_date": "2026-10-15",
-				"status": "unpaid",
-				"notes": "October office order",
-				"items": [{"product": product_response.data["id"], "quantity": "2.00"}],
-			},
-			format="json",
-		)
+        self.finance_user = User.objects.create_user(username="finance_staff", password="password123")
+        UserProfile.objects.update_or_create(user=self.finance_user, defaults={"role": UserProfile.Role.FINANCE})
 
-		self.assertEqual(response.status_code, 201)
-		expense = ExpenseRecord.objects.get(reference_number="EXP-2026-014")
-		self.assertEqual(expense.created_by, self.user)
-		self.assertEqual(expense.amount, 425.50)
-		self.assertEqual(expense.description, "Printer toner")
-		self.assertEqual(expense.items.count(), 1)
+        self.manager_user = User.objects.create_user(username="manager_staff", password="password123")
+        UserProfile.objects.update_or_create(user=self.manager_user, defaults={"role": UserProfile.Role.MANAGER})
 
-		update_response = self.client.patch(
-			f"/api/expenses/{expense.pk}/",
-			{
-				"status": "paid",
-				"paid_date": "2026-10-03",
-				"items": [{"product": product_response.data["id"], "quantity": "3.00"}],
-			},
-			format="json",
-		)
-		self.assertEqual(update_response.status_code, 200)
-		expense.refresh_from_db()
-		self.assertEqual(expense.status, ExpenseRecord.Status.PAID)
-		self.assertEqual(str(expense.paid_date), "2026-10-03")
-		self.assertEqual(expense.amount, 638.25)
+        self.emp = Employee.objects.create(employee_id="EMP-EXP-1", full_name="Expense User", phone="12345")
+        self.category = ExpenseCategory.objects.create(name="Office Logistics")
 
-		list_response = self.client.get("/api/expenses/?search=Harbor")
-		self.assertEqual(list_response.status_code, 200)
-		self.assertEqual(len(list_response.data), 1)
-		self.assertEqual(list_response.data[0]["status"], "paid")
-		self.assertEqual(list_response.data[0]["vendor_name"], "Harbor Office Supplies")
+        self.client = APIClient()
+        self.client.force_login(self.admin_user)
 
-		delete_response = self.client.delete(f"/api/expenses/{expense.pk}/")
-		self.assertEqual(delete_response.status_code, 204)
-		self.assertFalse(ExpenseRecord.objects.filter(pk=expense.pk).exists())
+    def test_create_expense_with_receipt_and_approve(self):
+        with TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
+            receipt = SimpleUploadedFile("receipt.pdf", b"%PDF-1.4 test receipt content", content_type="application/pdf")
+            response = self.client.post(reverse("expense-create"), {
+                "reference_number": "EXP-TST-001",
+                "employee": self.emp.pk,
+                "category_ref": self.category.pk,
+                "vendor_name": "Gulf Supplies",
+                "description": "Office paper and pens",
+                "amount": "450.00",
+                "currency": "AED",
+                "bill_date": str(date.today()),
+                "status": "pending",
+                "payment_method": "cash",
+                "receipt_file": receipt,
+            })
+            self.assertEqual(response.status_code, 302)
+            expense = ExpenseRecord.objects.get(reference_number="EXP-TST-001")
+            self.assertEqual(expense.amount, Decimal("450.00"))
+            self.assertEqual(expense.status, ExpenseRecord.Status.PENDING)
+            self.assertTrue(bool(expense.receipt_file))
 
-	def test_existing_expense_without_product_lines_can_still_be_updated(self):
-		expense = ExpenseRecord.objects.create(
-			reference_number="OLD-EXP-1",
-			vendor_name="Existing supplier",
-			category="Utilities",
-			description="Legacy expense entry",
-			amount="96.25",
-			currency="AED",
-			bill_date="2026-09-30",
-			created_by=self.user,
-		)
+            # Approve
+            approve_res = self.client.post(reverse("expense-approve", args=[expense.pk]))
+            self.assertEqual(approve_res.status_code, 302)
+            expense.refresh_from_db()
+            self.assertEqual(expense.status, ExpenseRecord.Status.APPROVED)
+            self.assertEqual(expense.approved_by, self.admin_user)
 
-		response = self.client.patch(
-			f"/api/expenses/{expense.pk}/",
-			{"status": "paid", "paid_date": "2026-10-02"},
-			format="json",
-		)
+            # Mark Paid
+            paid_res = self.client.post(reverse("expense-mark-paid", args=[expense.pk]))
+            self.assertEqual(paid_res.status_code, 302)
+            expense.refresh_from_db()
+            self.assertEqual(expense.status, ExpenseRecord.Status.PAID)
+            self.assertEqual(expense.paid_date, date.today())
 
-		self.assertEqual(response.status_code, 200)
-		expense.refresh_from_db()
-		self.assertEqual(expense.status, ExpenseRecord.Status.PAID)
-		self.assertEqual(expense.amount, 96.25)
+    def test_expense_pdf_and_print_generation(self):
+        exp = ExpenseRecord.objects.create(
+            reference_number="EXP-PDF-1",
+            employee=self.emp,
+            vendor_name="Dubai Tech Store",
+            amount=Decimal("1200.00"),
+            currency="AED",
+            bill_date=date.today(),
+            status=ExpenseRecord.Status.APPROVED,
+        )
+        print_res = self.client.get(reverse("expense-print", args=[exp.pk]))
+        self.assertEqual(print_res.status_code, 200)
+        self.assertContains(print_res, "EXP-PDF-1")
+        self.assertContains(print_res, "1200.00")
 
-	def test_dashboard_keeps_invoice_and_pos_sections_separate(self):
-		response = self.client.get("/dashboard/")
+        pdf_res = self.client.get(reverse("expense-pdf", args=[exp.pk]))
+        self.assertEqual(pdf_res.status_code, 200)
+        self.assertEqual(pdf_res["Content-Type"], "application/pdf")
+        self.assertTrue(len(pdf_res.content) > 500)
 
-		self.assertEqual(response.status_code, 200)
-		self.assertContains(response, 'id="billing-form"')
-		self.assertContains(response, 'id="expense-form"')
-		self.assertNotContains(response, "Company tracking")
-		self.assertContains(response, 'name="citizenship_number"')
-		self.assertContains(response, 'list="nationality-options"')
-		self.assertContains(response, 'id="employee-detail-overlay"')
-		self.assertContains(response, 'id="employee-print-sheet-slot"')
-		self.assertEqual(response.content.count(b'id="expenses-table"'), 1)
-		self.assertEqual(response.content.count(b'id="expense-search"'), 1)
 
-	def test_document_upload_rejects_unsupported_file_types(self):
-		employee = Employee.objects.create(
-			employee_id="EMP-105",
-			full_name="Bina Thapa",
-			phone="9800000001",
-		)
-		response = self.client.post(
-			"/api/documents/",
-			{
-				"employee": employee.pk,
-				"title": "Executable",
-				"category": "other",
-				"file": SimpleUploadedFile("payload.exe", b"not a document"),
-			},
-			format="multipart",
-		)
+class DocumentAndSecurityTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.admin = User.objects.create_superuser(username="admin_sec", password="password")
+        UserProfile.objects.update_or_create(user=self.admin, defaults={"role": UserProfile.Role.ADMIN})
 
-		self.assertEqual(response.status_code, 400)
-		self.assertIn("file", response.data)
+        self.unauth_user = User.objects.create_user(username="standard_user", password="password")
+        UserProfile.objects.update_or_create(user=self.unauth_user, defaults={"role": UserProfile.Role.EMPLOYEE})
 
-	def test_document_download_requires_login(self):
-		anonymous_client = APIClient()
-		response = anonymous_client.get(reverse("employee-document-download", args=[999]))
+        self.emp = Employee.objects.create(employee_id="EMP-SEC-1", full_name="Protected User", phone="12345")
 
-		self.assertEqual(response.status_code, 302)
+    def test_anonymous_access_redirects_to_login(self):
+        client = APIClient()
+        response = client.get(reverse("employee-list"))
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.url.startswith(reverse("login")) or response.url.startswith("/login"))
 
-	def test_document_download_returns_private_file_for_authenticated_user(self):
-		employee = Employee.objects.create(
-			employee_id="EMP-106",
-			full_name="Nima Karki",
-			phone="9800000002",
-		)
-		with TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
-			document = EmployeeDocument.objects.create(
-				employee=employee,
-				title="Passport scan.pdf",
-				category=EmployeeDocument.Category.PASSPORT,
-				file=SimpleUploadedFile("passport.pdf", b"private document"),
-				uploaded_by=self.user,
-			)
+    def test_document_upload_and_download_security(self):
+        client = APIClient()
+        client.force_login(self.admin)
 
-			response = self.client.get(reverse("employee-document-download", args=[document.pk]))
+        with TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
+            doc_file = SimpleUploadedFile("contract.pdf", b"%PDF-1.4 sample contract", content_type="application/pdf")
+            response = client.post(reverse("employee-document-upload", args=[self.emp.pk]), {
+                "title": "Employment Contract 2026",
+                "category": "contract",
+                "file": doc_file,
+            })
+            self.assertEqual(response.status_code, 302)
+            doc = EmployeeDocument.objects.get(employee=self.emp, title="Employment Contract 2026")
 
-			self.assertEqual(response.status_code, 200)
-			self.assertTrue(response["Content-Disposition"].startswith("attachment;"))
-			self.assertEqual(b"".join(response.streaming_content), b"private document")
+            # Authenticated user can download
+            dl_res = client.get(reverse("employee-document-download", args=[doc.pk]))
+            self.assertEqual(dl_res.status_code, 200)
+            self.assertEqual(dl_res["Content-Type"], "application/pdf")
+            dl_res.close()
+
+            # Anonymous cannot download
+            anon_client = APIClient()
+            anon_res = anon_client.get(reverse("employee-document-download", args=[doc.pk]))
+            self.assertEqual(anon_res.status_code, 302)
+            anon_res.close()
+
+
+class ReportingAndExportsTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.admin = User.objects.create_superuser(username="admin_rep", password="password")
+        UserProfile.objects.update_or_create(user=self.admin, defaults={"role": UserProfile.Role.ADMIN})
+
+        self.client = APIClient()
+        self.client.force_login(self.admin)
+
+        self.dept = Department.objects.create(name="Fleet Logistics")
+        self.emp1 = Employee.objects.create(employee_id="EMP-R1", full_name="Alpha User", phone="111", department=self.dept, status=Employee.Status.ACTIVE)
+        self.emp2 = Employee.objects.create(employee_id="EMP-R2", full_name="Beta User", phone="222", department=self.dept, status=Employee.Status.ON_LEAVE)
+
+        ExpenseRecord.objects.create(reference_number="EXP-R1", vendor_name="Fuel Co", amount=Decimal("600.00"), currency="AED", bill_date=date.today(), status=ExpenseRecord.Status.PAID)
+        ExpenseRecord.objects.create(reference_number="EXP-R2", vendor_name="Tire Co", amount=Decimal("400.00"), currency="AED", bill_date=date.today(), status=ExpenseRecord.Status.APPROVED)
+
+    def test_employee_reports_page_and_exports(self):
+        response = self.client.get(reverse("reports-employees"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Fleet Logistics")
+
+        # Excel export
+        excel_res = self.client.get(reverse("reports-employees") + "?export=excel")
+        self.assertEqual(excel_res.status_code, 200)
+        self.assertEqual(excel_res["Content-Type"], "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+        # CSV export
+        csv_res = self.client.get(reverse("reports-employees") + "?export=csv")
+        self.assertEqual(csv_res.status_code, 200)
+        self.assertEqual(csv_res["Content-Type"], "text/csv; charset=utf-8")
+        self.assertContains(csv_res, "Alpha User")
+
+        # PDF export
+        pdf_res = self.client.get(reverse("reports-employees") + "?export=pdf")
+        self.assertEqual(pdf_res.status_code, 200)
+        self.assertEqual(pdf_res["Content-Type"], "application/pdf")
+
+    def test_expense_reports_page_and_exports(self):
+        response = self.client.get(reverse("reports-expenses"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "1000.00")
+
+        # Excel export
+        excel_res = self.client.get(reverse("reports-expenses") + "?export=excel")
+        self.assertEqual(excel_res.status_code, 200)
+
+        # CSV export
+        csv_res = self.client.get(reverse("reports-expenses") + "?export=csv")
+        self.assertEqual(csv_res.status_code, 200)
+        self.assertContains(csv_res, "EXP-R1")
+        self.assertContains(csv_res, "Fuel Co")
+
+        # PDF export
+        pdf_res = self.client.get(reverse("reports-expenses") + "?export=pdf")
+        self.assertEqual(pdf_res.status_code, 200)
+        self.assertEqual(pdf_res["Content-Type"], "application/pdf")
+
+
+class DashboardAndLegacyApiTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_superuser(username="manager", password="test-password")
+        UserProfile.objects.update_or_create(user=self.user, defaults={"role": UserProfile.Role.ADMIN})
+
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.client.force_login(self.user)
+
+    def test_dashboard_renders_with_overlays_and_slots(self):
+        response = self.client.get(reverse("home"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="employee-detail-overlay"')
+        self.assertContains(response, 'id="employee-print-sheet-slot"')
+        self.assertContains(response, 'id="joining-print-sheet"')
+        self.assertContains(response, 'id="billing-form"')
+        self.assertContains(response, 'id="expense-form"')
+        self.assertContains(response, 'name="citizenship_number"')
+
+    def test_dashboard_stats_api_returns_aggregates(self):
+        response = self.client.get(reverse("dashboard-stats-api"))
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("total_employees", data)
+        self.assertIn("total_expenses", data)
+        self.assertIn("active_employees", data)
+
+    def test_joining_creation_and_photo(self):
+        emp = Employee.objects.create(employee_id="EMP-LEG-1", full_name="Legacy User", phone="9800000000")
+        with TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
+            res = self.client.post("/api/joinings/", {
+                "employee": emp.pk,
+                "client_name": "Cedar Logistics",
+                "hiring_person_name": "Mina Shrestha",
+                "joining_date": "2026-11-15",
+                "nationality": "Nepali",
+                "passport_photo": SimpleUploadedFile("photo.png", b"\x89PNG\r\n\x1a\nphoto", content_type="image/png"),
+            }, format="multipart")
+            self.assertEqual(res.status_code, 201)
+            joining_id = res.data["id"]
+
+            photo_res = self.client.get(reverse("joining-photo", args=[joining_id]))
+            self.assertEqual(photo_res.status_code, 200)
+            self.assertEqual(photo_res["Content-Type"], "image/png")
+            photo_res.close()

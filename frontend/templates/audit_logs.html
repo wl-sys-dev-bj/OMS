@@ -1,0 +1,105 @@
+{% extends "partial/base.html" %}
+{% load static %}
+
+{% block title %}System Audit Trail · {{ COMPANY_NAME }}{% endblock %}
+
+{% block content %}
+<div class="app-shell">
+	<aside class="sidebar">
+		<a class="brand" href="{% url 'home' %}">
+			<span class="brand-mark">O</span>
+			<span><strong>OMS</strong><small>PEOPLE OPERATIONS</small></span>
+		</a>
+		<p class="nav-label">WORKSPACE</p>
+		<nav class="primary-nav">
+			<a class="nav-item" href="{% url 'home' %}"><span class="nav-icon">◫</span>Overview</a>
+			<a class="nav-item" href="{% url 'employee-list' %}"><span class="nav-icon">♙</span>Employees</a>
+			<a class="nav-item" href="{% url 'expense-list' %}"><span class="nav-icon">💳</span>Expenses</a>
+			<a class="nav-item" href="{% url 'reports-home' %}"><span class="nav-icon">📊</span>Reports</a>
+			<a class="nav-item active" href="{% url 'audit-logs' %}"><span class="nav-icon">📋</span>Audit Trail</a>
+			<a class="nav-item" href="{% url 'admin:index' %}" target="_blank"><span class="nav-icon">⚙</span>Django Admin</a>
+		</nav>
+		<div class="sidebar-bottom">
+			<a class="logout-link" href="{% url 'logout' %}">Sign out <span aria-hidden="true">↗</span></a>
+		</div>
+	</aside>
+
+	<main class="main-area">
+		<header class="topbar">
+			<div>
+				<p class="eyebrow">ADMINISTRATION / <span style="color: var(--forest);">AUDIT TRAIL</span></p>
+				<h1>System Audit Log</h1>
+			</div>
+		</header>
+
+		<!-- FILTER & SEARCH -->
+		<section class="panel" style="margin-bottom: 20px; padding: 14px 18px;">
+			<form method="GET" style="display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap;">
+				<div style="flex: 2; min-width: 180px;">
+					<label style="display: block; margin-bottom: 4px; font-weight: bold; font-size: 11px;">Search Log</label>
+					<input type="search" name="search" value="{{ search }}" placeholder="User, object ID, changes..." style="width: 100%; height: 34px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 4px;">
+				</div>
+				<div style="flex: 1; min-width: 130px;">
+					<label style="display: block; margin-bottom: 4px; font-weight: bold; font-size: 11px;">Action</label>
+					<select name="action" style="width: 100%; height: 34px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 4px;">
+						<option value="">All Actions</option>
+						{% for val, label in action_choices %}
+						<option value="{{ val }}" {% if current_action == val %}selected{% endif %}>{{ label }}</option>
+						{% endfor %}
+					</select>
+				</div>
+				<button type="submit" class="button button-dark" style="height: 34px;">Filter</button>
+				<a href="{% url 'audit-logs' %}" class="button button-quiet" style="height: 34px;">Reset</a>
+			</form>
+		</section>
+
+		<!-- AUDIT TABLE -->
+		<section class="panel">
+			<div class="table-wrap">
+				<table>
+					<thead>
+						<tr>
+							<th>TIMESTAMP</th>
+							<th>USER</th>
+							<th>ACTION</th>
+							<th>MODEL</th>
+							<th>TARGET OBJECT</th>
+							<th>CHANGES & DETAILS</th>
+							<th>IP ADDRESS</th>
+						</tr>
+					</thead>
+					<tbody>
+						{% for log in audit_logs %}
+						<tr>
+							<td style="white-space: nowrap;">{{ log.timestamp|date:"d M Y, H:i:s" }}</td>
+							<td><strong>{{ log.user.username|default:"System" }}</strong></td>
+							<td><span class="status-badge status-{{ log.action }}">{{ log.get_action_display }}</span></td>
+							<td>{{ log.model_name }}</td>
+							<td>{{ log.object_repr|default:log.object_id }}</td>
+							<td style="max-width: 320px; overflow: hidden; text-overflow: ellipsis; font-size: 11px; color: #444;">{{ log.changes|default:"—" }}</td>
+							<td style="color: var(--muted); font-size: 11px;">{{ log.ip_address|default:"Local" }}</td>
+						</tr>
+						{% empty %}
+						<tr><td colspan="7" class="empty-cell">No audit log records found.</td></tr>
+						{% endfor %}
+					</tbody>
+				</table>
+			</div>
+
+			{% if page_obj.has_other_pages %}
+			<div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-top: 1px solid var(--line);">
+				<span style="color: var(--muted); font-size: 12px;">Showing page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+				<div style="display: flex; gap: 6px;">
+					{% if page_obj.has_previous %}
+					<a class="button button-quiet" style="height: 32px; font-size: 11px;" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if current_action %}&action={{ current_action }}{% endif %}">← Previous</a>
+					{% endif %}
+					{% if page_obj.has_next %}
+					<a class="button button-quiet" style="height: 32px; font-size: 11px;" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if current_action %}&action={{ current_action }}{% endif %}">Next →</a>
+					{% endif %}
+				</div>
+			</div>
+			{% endif %}
+		</section>
+	</main>
+</div>
+{% endblock %}

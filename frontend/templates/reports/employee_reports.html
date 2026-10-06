@@ -1,0 +1,133 @@
+{% extends "partial/base.html" %}
+{% load static %}
+
+{% block title %}Workforce Reports · {{ COMPANY_NAME }}{% endblock %}
+
+{% block content %}
+<div class="app-shell">
+	<aside class="sidebar">
+		<a class="brand" href="{% url 'home' %}">
+			<span class="brand-mark">O</span>
+			<span><strong>OMS</strong><small>PEOPLE OPERATIONS</small></span>
+		</a>
+		<p class="nav-label">WORKSPACE</p>
+		<nav class="primary-nav">
+			<a class="nav-item" href="{% url 'home' %}"><span class="nav-icon">◫</span>Overview</a>
+			<a class="nav-item" href="{% url 'employee-list' %}"><span class="nav-icon">♙</span>Employees</a>
+			<a class="nav-item" href="{% url 'expense-list' %}"><span class="nav-icon">💳</span>Expenses</a>
+			<a class="nav-item active" href="{% url 'reports-home' %}"><span class="nav-icon">📊</span>Reports</a>
+		</nav>
+		<div class="sidebar-bottom">
+			<a class="logout-link" href="{% url 'logout' %}">Sign out <span aria-hidden="true">↗</span></a>
+		</div>
+	</aside>
+
+	<main class="main-area">
+		<header class="topbar">
+			<div>
+				<p class="eyebrow"><a href="{% url 'reports-home' %}" style="color: inherit; text-decoration: none;">REPORTS</a> / <span style="color: var(--forest);">WORKFORCE</span></p>
+				<h1>Workforce Distribution Report</h1>
+			</div>
+			<div class="topbar-meta" style="display: flex; gap: 8px;">
+				<a href="?export=excel" class="button button-quiet">📊 Export Excel</a>
+				<a href="?export=csv" class="button button-quiet">📄 Export CSV</a>
+				<a href="?export=pdf" class="button button-dark">📑 Download PDF</a>
+			</div>
+		</header>
+
+		<!-- STATS BREAKDOWN GRIDS -->
+		<div class="stat-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 24px;">
+			
+			<!-- BY DEPARTMENT -->
+			<section class="panel" style="padding: 16px;">
+				<h3 style="margin: 0 0 12px; font-size: 15px; color: var(--forest);">By Department</h3>
+				<table style="font-size: 11px;">
+					<thead><tr><th>DEPARTMENT</th><th style="text-align: right;">HEADCOUNT</th></tr></thead>
+					<tbody>
+						{% for d in dept_stats %}
+						<tr>
+							<td><strong>{{ d.name }}</strong></td>
+							<td style="text-align: right;"><span class="status-badge status-active">{{ d.emp_count }}</span></td>
+						</tr>
+						{% empty %}
+						<tr><td colspan="2">No data</td></tr>
+						{% endfor %}
+					</tbody>
+				</table>
+			</section>
+
+			<!-- BY STATUS -->
+			<section class="panel" style="padding: 16px;">
+				<h3 style="margin: 0 0 12px; font-size: 15px; color: var(--forest);">By Employment Status</h3>
+				<table style="font-size: 11px;">
+					<thead><tr><th>STATUS</th><th style="text-align: right;">COUNT</th></tr></thead>
+					<tbody>
+						{% for s in status_stats %}
+						<tr>
+							<td><span class="status-badge status-{{ s.status }}">{{ s.status|title }}</span></td>
+							<td style="text-align: right;"><strong>{{ s.count }}</strong></td>
+						</tr>
+						{% empty %}
+						<tr><td colspan="2">No data</td></tr>
+						{% endfor %}
+					</tbody>
+				</table>
+			</section>
+
+			<!-- BY EMPLOYMENT TYPE -->
+			<section class="panel" style="padding: 16px;">
+				<h3 style="margin: 0 0 12px; font-size: 15px; color: var(--forest);">By Contract Type</h3>
+				<table style="font-size: 11px;">
+					<thead><tr><th>TYPE</th><th style="text-align: right;">COUNT</th></tr></thead>
+					<tbody>
+						{% for t in type_stats %}
+						<tr>
+							<td><strong>{{ t.employment_type|title }}</strong></td>
+							<td style="text-align: right;"><strong>{{ t.count }}</strong></td>
+						</tr>
+						{% empty %}
+						<tr><td colspan="2">No data</td></tr>
+						{% endfor %}
+					</tbody>
+				</table>
+			</section>
+
+		</div>
+
+		<!-- RECENT HEADCOUNT ROSTER -->
+		<section class="panel">
+			<div class="panel-heading">
+				<div>
+					<h3>Active Roster Sample</h3>
+					<p>Total Headcount: {{ total_employees }} Employees</p>
+				</div>
+				<a href="{% url 'employee-list' %}" class="button button-quiet" style="height: 32px; font-size: 11px;">View Full Directory →</a>
+			</div>
+			<div class="table-wrap">
+				<table>
+					<thead>
+						<tr>
+							<th>EMPLOYEE</th>
+							<th>DEPARTMENT</th>
+							<th>DESIGNATION</th>
+							<th>JOINING DATE</th>
+							<th>STATUS</th>
+						</tr>
+					</thead>
+					<tbody>
+						{% for emp in employees %}
+						<tr>
+							<td><strong>{{ emp.full_name }}</strong> ({{ emp.employee_id }})</td>
+							<td>{{ emp.department.name|default:"—" }}</td>
+							<td>{{ emp.designation.name|default:emp.job_title|default:"Staff" }}</td>
+							<td>{{ emp.joining_date|date:"d M Y"|default:"—" }}</td>
+							<td><span class="status-badge status-{{ emp.status }}">{{ emp.get_status_display }}</span></td>
+						</tr>
+						{% endfor %}
+					</tbody>
+				</table>
+			</div>
+		</section>
+	</main>
+</div>
+{% endblock %}

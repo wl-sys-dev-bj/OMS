@@ -1,0 +1,181 @@
+{% extends "partial/base.html" %}
+{% load static %}
+
+{% block title %}Expense Register · {{ COMPANY_NAME }}{% endblock %}
+
+{% block content %}
+<div class="app-shell">
+	<aside class="sidebar">
+		<a class="brand" href="{% url 'home' %}">
+			<span class="brand-mark">O</span>
+			<span><strong>OMS</strong><small>PEOPLE OPERATIONS</small></span>
+		</a>
+		<p class="nav-label">WORKSPACE</p>
+		<nav class="primary-nav">
+			<a class="nav-item" href="{% url 'home' %}"><span class="nav-icon">◫</span>Overview</a>
+			<a class="nav-item" href="{% url 'employee-list' %}"><span class="nav-icon">♙</span>Employees</a>
+			<a class="nav-item active" href="{% url 'expense-list' %}"><span class="nav-icon">💳</span>Expenses</a>
+			<a class="nav-item" href="{% url 'reports-home' %}"><span class="nav-icon">📊</span>Reports</a>
+			{% if request.user.is_superuser or USER_ROLE == 'admin' %}
+			<a class="nav-item" href="{% url 'audit-logs' %}"><span class="nav-icon">📋</span>Audit Trail</a>
+			<a class="nav-item" href="{% url 'admin:index' %}" target="_blank"><span class="nav-icon">⚙</span>Django Admin</a>
+			{% endif %}
+		</nav>
+		<div class="sidebar-bottom">
+			<div class="user-chip">
+				<span class="user-avatar">{{ request.user.username|slice:':1'|upper }}</span>
+				<span>
+					<strong>{{ request.user.get_full_name|default:request.user.username }}</strong>
+					<small>{{ USER_ROLE|upper }}</small>
+				</span>
+			</div>
+			<a class="logout-link" href="{% url 'logout' %}">Sign out <span aria-hidden="true">↗</span></a>
+		</div>
+	</aside>
+
+	<main class="main-area">
+		<header class="topbar">
+			<div>
+				<p class="eyebrow">FINANCE & EXPENSES / <span style="color: var(--forest);">REGISTER</span></p>
+				<h1>Expense Bills & Vouchers</h1>
+			</div>
+			<div class="topbar-meta">
+				<a class="button button-dark" href="{% url 'expense-create' %}">＋ New Expense Record</a>
+			</div>
+		</header>
+
+		<!-- SUMMARY STATS -->
+		<div class="stat-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 20px;">
+			<article class="stat-card" style="border-top: 3px solid #173c32;">
+				<span class="stat-label">TOTAL EXPENSES</span>
+				<strong>AED {{ total_amount|floatformat:2 }}</strong>
+				<span class="stat-note">{{ total_count }} total bills</span>
+			</article>
+			<article class="stat-card" style="border-top: 3px solid #d7ad54;">
+				<span class="stat-label">PENDING APPROVAL</span>
+				<strong>AED {{ pending_total|floatformat:2 }}</strong>
+				<span class="stat-note">Awaiting review</span>
+			</article>
+			<article class="stat-card" style="border-top: 3px solid #569879;">
+				<span class="stat-label">APPROVED</span>
+				<strong>AED {{ approved_total|floatformat:2 }}</strong>
+				<span class="stat-note">Ready for payment</span>
+			</article>
+			<article class="stat-card" style="border-top: 3px solid #718eae;">
+				<span class="stat-label">PAID</span>
+				<strong>AED {{ paid_total|floatformat:2 }}</strong>
+				<span class="stat-note">Disbursed successfully</span>
+			</article>
+		</div>
+
+		<!-- FILTER & SEARCH BAR -->
+		<section class="panel" style="margin-bottom: 20px;">
+			<form method="GET" action="{% url 'expense-list' %}" class="filter-form" style="display: flex; flex-wrap: wrap; gap: 12px; padding: 16px; align-items: flex-end;">
+				<div style="flex: 2; min-width: 180px;">
+					<label style="display: block; margin-bottom: 4px; font-weight: bold; font-size: 11px;">Search Bills</label>
+					<input type="search" name="search" value="{{ search }}" placeholder="Ref #, vendor, invoice, employee..." style="width: 100%; height: 36px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 4px;">
+				</div>
+				<div style="flex: 1; min-width: 120px;">
+					<label style="display: block; margin-bottom: 4px; font-weight: bold; font-size: 11px;">From Date</label>
+					<input type="date" name="start_date" value="{{ start_date }}" style="width: 100%; height: 36px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 4px;">
+				</div>
+				<div style="flex: 1; min-width: 120px;">
+					<label style="display: block; margin-bottom: 4px; font-weight: bold; font-size: 11px;">To Date</label>
+					<input type="date" name="end_date" value="{{ end_date }}" style="width: 100%; height: 36px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 4px;">
+				</div>
+				<div style="flex: 1; min-width: 130px;">
+					<label style="display: block; margin-bottom: 4px; font-weight: bold; font-size: 11px;">Category</label>
+					<select name="category" style="width: 100%; height: 36px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 4px;">
+						<option value="">All Categories</option>
+						{% for cat in categories %}
+						<option value="{{ cat.id }}" {% if current_category == cat.id|stringformat:"s" %}selected{% endif %}>{{ cat.name }}</option>
+						{% endfor %}
+					</select>
+				</div>
+				<div style="flex: 1; min-width: 130px;">
+					<label style="display: block; margin-bottom: 4px; font-weight: bold; font-size: 11px;">Status</label>
+					<select name="status" style="width: 100%; height: 36px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 4px;">
+						<option value="">All Statuses</option>
+						{% for val, label in status_choices %}
+						<option value="{{ val }}" {% if current_status == val %}selected{% endif %}>{{ label }}</option>
+						{% endfor %}
+					</select>
+				</div>
+				<div style="display: flex; gap: 6px;">
+					<button type="submit" class="button button-dark" style="height: 36px;">Filter</button>
+					<a href="{% url 'expense-list' %}" class="button button-quiet" style="height: 36px;">Reset</a>
+				</div>
+				<div style="margin-left: auto; display: flex; gap: 6px;">
+					<a href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}export=excel" class="button button-quiet" style="height: 36px;" title="Export filtered expenses to Excel">📊 Excel</a>
+					<a href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}export=csv" class="button button-quiet" style="height: 36px;" title="Export filtered expenses to CSV">📄 CSV</a>
+					<a href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}export=pdf" class="button button-quiet" style="height: 36px;" title="Download PDF Report">📑 PDF</a>
+				</div>
+			</form>
+		</section>
+
+		<!-- EXPENSE TABLE -->
+		<section class="panel">
+			<div class="table-wrap">
+				<table>
+					<thead>
+						<tr>
+							<th>REF #</th>
+							<th>BILL DATE</th>
+							<th>VENDOR / EMPLOYEE</th>
+							<th>CATEGORY</th>
+							<th>PAYMENT METHOD</th>
+							<th>AMOUNT</th>
+							<th>STATUS</th>
+							<th style="text-align: right;">ACTIONS</th>
+						</tr>
+					</thead>
+					<tbody>
+						{% for exp in expenses %}
+						<tr>
+							<td>
+								<a href="{% url 'expense-detail' exp.pk %}" style="color: inherit; text-decoration: none;">
+									<strong>{{ exp.reference_number }}</strong>
+									{% if exp.invoice_number %}<span class="table-secondary">Inv: {{ exp.invoice_number }}</span>{% endif %}
+								</a>
+							</td>
+							<td>{{ exp.bill_date|date:"d M Y" }}</td>
+							<td>
+								<strong>{{ exp.vendor_name|default:"—" }}</strong>
+								{% if exp.employee %}<span class="table-secondary">Emp: {{ exp.employee.full_name }}</span>{% endif %}
+							</td>
+							<td>{{ exp.category|default:"General" }}</td>
+							<td>{{ exp.get_payment_method_display }}</td>
+							<td><strong style="color: var(--forest);">{{ exp.currency }} {{ exp.amount|floatformat:2 }}</strong></td>
+							<td><span class="status-badge status-{{ exp.status }}">{{ exp.get_status_display }}</span></td>
+							<td style="text-align: right; white-space: nowrap;">
+								<a class="row-action" href="{% url 'expense-detail' exp.pk %}">View</a>
+								<a class="row-action" href="{% url 'expense-edit' exp.pk %}">Edit</a>
+								<a class="row-action" href="{% url 'expense-print' exp.pk %}" target="_blank">Print</a>
+								<a class="row-action" href="{% url 'expense-pdf' exp.pk %}">PDF</a>
+							</td>
+						</tr>
+						{% empty %}
+						<tr><td colspan="8" class="empty-cell">No expense records match the specified filters.</td></tr>
+						{% endfor %}
+					</tbody>
+				</table>
+			</div>
+
+			<!-- PAGINATION -->
+			{% if page_obj.has_other_pages %}
+			<div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-top: 1px solid var(--line);">
+				<span style="color: var(--muted); font-size: 12px;">Showing page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+				<div style="display: flex; gap: 6px;">
+					{% if page_obj.has_previous %}
+					<a class="button button-quiet" style="height: 32px; font-size: 11px;" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if current_category %}&category={{ current_category }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}">← Previous</a>
+					{% endif %}
+					{% if page_obj.has_next %}
+					<a class="button button-quiet" style="height: 32px; font-size: 11px;" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if current_category %}&category={{ current_category }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}">Next →</a>
+					{% endif %}
+				</div>
+			</div>
+			{% endif %}
+		</section>
+	</main>
+</div>
+{% endblock %}

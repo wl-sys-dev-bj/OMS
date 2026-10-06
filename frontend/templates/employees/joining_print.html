@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>JOINING FORM · {{ employee.full_name|default:joining.applicant_name }}</title>
+	<style>
+		@page {
+			size: A4 portrait;
+			margin: 8mm;
+		}
+		* {
+			box-sizing: border-box;
+			font-family: "Times New Roman", Times, serif;
+		}
+		body {
+			margin: 0;
+			padding: 15px;
+			color: #111111;
+			background: #f5f7f3;
+			font-size: 9pt;
+			line-height: 1.25;
+		}
+		.no-print-bar {
+			max-width: 190mm;
+			margin: 0 auto 15px;
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			font-family: Arial, sans-serif;
+		}
+		.btn {
+			padding: 8px 16px;
+			background: #1767bd;
+			color: #ffffff;
+			border: none;
+			border-radius: 4px;
+			cursor: pointer;
+			font-weight: bold;
+			text-decoration: none;
+			font-size: 13px;
+		}
+		.btn-outline {
+			background: transparent;
+			color: #1767bd;
+			border: 1px solid #1767bd;
+		}
+		.joining-print-sheet {
+			width: 190mm;
+			min-height: 275mm;
+			margin: 0 auto;
+			padding: 7mm;
+			border: 1.3px solid #1767bd;
+			background: #ffffff;
+			display: flex;
+			flex-direction: column;
+		}
+		.joining-print-header {
+			min-height: 11mm;
+			display: grid;
+			place-items: start center;
+		}
+		.joining-print-header h1 {
+			margin: 0;
+			color: #1767bd;
+			font: bold 14pt "Times New Roman", serif;
+		}
+		.joining-print-applicant {
+			position: relative;
+			min-height: 48mm;
+			padding-right: 32mm;
+		}
+		.joining-print-grid {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 2.2mm 4mm;
+		}
+		.print-line {
+			min-width: 0;
+			min-height: 6mm;
+			display: flex;
+			align-items: flex-end;
+			gap: 1.5mm;
+		}
+		.print-line span, .print-term span {
+			flex: 0 0 auto;
+			white-space: nowrap;
+		}
+		.print-line strong, .print-term strong {
+			min-width: 10mm;
+			flex: 1;
+			min-height: 4mm;
+			overflow: hidden;
+			border-bottom: 0.35pt solid #222;
+			font-weight: 400;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+		.print-wide {
+			grid-column: 1 / -1;
+		}
+		.joining-print-photo {
+			position: absolute;
+			top: 1mm;
+			right: 0;
+			width: 25mm;
+			height: 32mm;
+			display: grid;
+			place-items: center;
+			overflow: hidden;
+			border: 1px solid #1e3c78;
+			color: #cbd0d8;
+			font: 10pt/1.15 Arial, sans-serif;
+			text-align: center;
+		}
+		.joining-print-photo img {
+			width: 100%;
+			height: 100%;
+			object-fit: cover;
+		}
+		.joining-print-phones {
+			width: 84%;
+			margin: 3mm auto;
+			border-collapse: collapse;
+		}
+		.joining-print-phones th, .joining-print-phones td {
+			height: 6.5mm;
+			padding: 1mm 2mm;
+			border: 0.5pt solid #222;
+			color: #111;
+			font: 8.5pt "Times New Roman", serif;
+			text-align: left;
+		}
+		.joining-print-phones th {
+			width: 23%;
+			font-weight: 400;
+		}
+		.joining-print-phones td {
+			width: 27%;
+		}
+		.joining-print-terms {
+			display: grid;
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+			gap: 3mm 3mm;
+			margin: 3mm 5mm 5mm;
+		}
+		.print-term {
+			min-width: 0;
+			min-height: 6mm;
+			display: flex;
+			align-items: flex-end;
+			gap: 1.2mm;
+			font-size: 8.5pt;
+		}
+		.joining-print-terms > :nth-child(4) { grid-column: 4; }
+		.joining-print-terms > :nth-child(5) { grid-column: 1; }
+		.joining-print-terms > :nth-child(6) { grid-column: 2; }
+		.joining-print-terms > :nth-child(7) { grid-column: 3; }
+		.joining-print-terms > :nth-child(8) { grid-column: 1; }
+		.joining-print-terms > :nth-child(9) { grid-column: 2 / 5; }
+		.joining-print-terms > :nth-child(10) { grid-column: 1 / -1; }
+		.joining-print-terms > :nth-child(11) { grid-column: 1; }
+		.joining-print-terms > :nth-child(12) { grid-column: 2; }
+		.joining-print-terms > :nth-child(13) { grid-column: 3 / 5; }
+
+		.print-employee-number {
+			position: relative;
+			min-height: 12mm;
+			display: grid;
+			grid-template-columns: auto minmax(12mm, 1fr);
+			align-items: center;
+			border: 0.5pt solid #222;
+		}
+		.print-employee-number span {
+			padding-left: 2mm;
+		}
+		.print-employee-number strong {
+			min-height: 7mm;
+			margin-right: 1mm;
+			border: 0.5pt solid #222;
+		}
+		.print-employee-number small {
+			position: absolute;
+			top: calc(100% + 1mm);
+			left: 0;
+			width: 100%;
+			font-size: 7pt;
+			text-align: center;
+		}
+		.joining-print-acknowledgment {
+			margin: 7mm 3mm 0;
+			font-size: 8.5pt;
+		}
+		.joining-print-acknowledgment > strong {
+			color: #1767bd;
+		}
+		.joining-print-acknowledgment p {
+			margin: 3mm 0 0 8mm;
+		}
+		.joining-print-signatures {
+			position: relative;
+			min-height: 40mm;
+			flex: 1;
+			margin: auto 2mm 0;
+			font-size: 8.5pt;
+		}
+		.print-signature, .print-thumb, .print-applicant-signature {
+			position: absolute;
+			display: flex;
+			align-items: flex-end;
+			gap: 2mm;
+		}
+		.print-signature {
+			bottom: 8mm;
+			left: 0;
+			width: 48%;
+		}
+		.print-signature i, .print-applicant-signature i {
+			flex: 1;
+			border-bottom: 0.5pt solid #222;
+		}
+		.print-thumb {
+			right: 0;
+			bottom: 13mm;
+			align-items: center;
+		}
+		.print-thumb i {
+			width: 25mm;
+			height: 22mm;
+			border: 0.7pt solid #222;
+		}
+		.print-applicant-signature {
+			right: 0;
+			bottom: 2mm;
+			width: 44%;
+		}
+
+		@media print {
+			body {
+				background: #ffffff;
+				padding: 0;
+			}
+			.no-print-bar {
+				display: none !important;
+			}
+			.joining-print-sheet {
+				border: 1.3px solid #1767bd !important;
+				margin: 0 !important;
+				width: 100% !important;
+			}
+		}
+	</style>
+</head>
+<body>
+
+	<div class="no-print-bar">
+		{% if employee %}
+		<a href="{% url 'employee-detail' employee.pk %}" class="btn btn-outline">← Back to Employee</a>
+		{% else %}
+		<a href="{% url 'home' %}" class="btn btn-outline">← Back to Operations</a>
+		{% endif %}
+		<div style="display: flex; gap: 8px;">
+			<a href="{% url 'joining-pdf' joining.pk %}" class="btn btn-outline">Download PDF</a>
+			<button onclick="window.print()" class="btn">🖨 Print Form</button>
+		</div>
+	</div>
+
+	<div class="joining-print-sheet">
+		<header class="joining-print-header">
+			<h1>JOINING FORM</h1>
+		</header>
+		<div class="joining-print-applicant">
+			<div class="joining-print-grid">
+				<div class="print-line"><span>Application Date:</span><strong>{{ joining.application_date|date:"d/m/Y"|default:"" }}</strong></div>
+				<div class="print-line"><span>Joining Date:</span><strong>{{ joining.joining_date|date:"d/m/Y"|default:"" }}</strong></div>
+				<div class="print-line print-wide"><span>Name:</span><strong>{{ employee.full_name|default:joining.applicant_name }}</strong></div>
+				<div class="print-line"><span>Father Name:</span><strong>{{ joining.father_name|default:"" }}</strong></div>
+				<div class="print-line"><span>Nationality:</span><strong>{{ joining.nationality|default:employee.nationality|default:"" }}</strong></div>
+				<div class="print-line"><span>City:</span><strong>{{ joining.city|default:"" }}</strong></div>
+				<div class="print-line"><span>Visa Status:</span><strong>{{ joining.visa_status|default:"" }}</strong></div>
+				<div class="print-line"><span>Visa Expire:</span><strong>{{ joining.visa_expiry|date:"d/m/Y"|default:"" }}</strong></div>
+				<div class="print-line"><span>Passport No:</span><strong>{{ joining.passport_number|default:employee.passport_number|default:"" }}</strong></div>
+				<div class="print-line"><span>Citizenship No:</span><strong>{{ joining.citizenship_number|default:employee.citizenship_number|default:"" }}</strong></div>
+				<div class="print-line"><span>Passport Expiry:</span><strong>{{ joining.passport_expiry|date:"d/m/Y"|default:"" }}</strong></div>
+			</div>
+			<div class="joining-print-photo">
+				{% if joining.passport_photo %}
+				<img src="{% url 'joining-photo' joining.pk %}" alt="Passport Photo">
+				{% else %}
+				<span>Passport Size<br>Photo<br>here</span>
+				{% endif %}
+			</div>
+		</div>
+		<table class="joining-print-phones">
+			<tbody>
+				<tr>
+					<th>Mobile No</th>
+					<td>{{ joining.mobile_number|default:employee.phone|default:"" }}</td>
+					<th>2nd Mobile No</th>
+					<td>{{ joining.secondary_mobile_number|default:"" }}</td>
+				</tr>
+				<tr>
+					<th>What's App</th>
+					<td>{{ joining.whatsapp_number|default:"" }}</td>
+					<th>2nd What's App</th>
+					<td>{{ joining.secondary_whatsapp_number|default:"" }}</td>
+				</tr>
+				<tr>
+					<th>Home No</th>
+					<td>{{ joining.home_number|default:"" }}</td>
+					<th>2nd Home No</th>
+					<td>{{ joining.secondary_home_number|default:"" }}</td>
+				</tr>
+			</tbody>
+		</table>
+		<div class="joining-print-terms">
+			<div class="print-term"><span>Basic Salary:</span><strong>{{ joining.basic_salary|default:"" }}</strong></div>
+			<div class="print-term"><span>Commission (%):</span><strong>{% if joining.commission_percent %}{{ joining.commission_percent }}%{% endif %}</strong></div>
+			<div class="print-term"><span>Allowance:</span><strong>{{ joining.allowance|default:"" }}</strong></div>
+			<div class="print-term"><span>Training Period:</span><strong>{{ joining.training_period|default:"" }}</strong></div>
+			<div class="print-term"><span>Starting Date:</span><strong>{{ joining.starting_date|date:"d/m/Y"|default:"" }}</strong></div>
+			<div class="print-term"><span>End Date:</span><strong>{{ joining.end_date|date:"d/m/Y"|default:"" }}</strong></div>
+			<div class="print-term"><span>Monthly Target:</span><strong>{{ joining.monthly_target|default:"" }}</strong></div>
+			<div class="print-term print-wide"><span>Visa Charges:</span><strong>{{ joining.visa_charges|default:"" }}</strong></div>
+			<div class="print-term print-wide"><span>Job Title:</span><strong>{{ joining.job_title|default:employee.job_title|default:"" }}</strong></div>
+			<div class="print-term"><span>HR Name:</span><strong>{{ joining.hr_name|default:"" }}</strong></div>
+			<div class="print-term"><span>HR Phone:</span><strong>{{ joining.hr_phone|default:"" }}</strong></div>
+			<div class="print-term print-employee-number"><span>EMP#</span><strong>{{ joining.assigned_employee_number|default:employee.employee_id|default:"" }}</strong><small>Only to be Issued after joining</small></div>
+		</div>
+		<div class="joining-print-acknowledgment">
+			<strong>Applicant Acknowledgment:</strong>
+			<p>I. I am happy to confirm that all aspects have been fully clarified on our end and within the company.</p>
+			<p>II. We are completely satisfied with the current alignment and ready to move forward.</p>
+			<p>III. I have no further questions. Kindly close my file.</p>
+		</div>
+		<div class="joining-print-signatures">
+			<div class="print-signature"><span>Manager Signature:</span><i></i></div>
+			<div class="print-thumb"><span>Applicant Thumbprint:</span><i></i></div>
+			<div class="print-applicant-signature"><span>Applicant Signature:</span><i></i></div>
+		</div>
+	</div>
+
+</body>
+</html>

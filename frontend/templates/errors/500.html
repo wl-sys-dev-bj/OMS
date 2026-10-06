@@ -1,0 +1,15 @@
+{% extends "partial/base.html" %}
+{% load static %}
+
+{% block title %}Server Error (500) · {{ COMPANY_NAME }}{% endblock %}
+
+{% block content %}
+<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background: var(--paper);">
+	<div class="panel" style="max-width: 480px; width: 100%; padding: 36px; text-align: center;">
+		<span style="font-size: 48px; display: block; margin-bottom: 12px;">⚠️</span>
+		<h1 style="margin: 0 0 8px; font-size: 24px; color: var(--forest);">Server Error (500)</h1>
+		<p style="color: var(--muted); margin: 0 0 24px; font-size: 13px;">An internal application error occurred while processing your request. The system administrator has been logged.</p>
+		<a href="{% url 'home' %}" class="button button-dark" style="display: inline-block;">Return to Operations Desk</a>
+	</div>
+</div>
+{% endblock %}

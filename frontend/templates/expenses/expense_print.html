@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Payment Voucher · {{ expense.reference_number }}</title>
+	<style>
+		@page {
+			size: A4 portrait;
+			margin: 12mm 15mm 15mm 15mm;
+		}
+		* {
+			box-sizing: border-box;
+			font-family: "Aptos", "Segoe UI", Arial, sans-serif;
+		}
+		body {
+			margin: 0;
+			padding: 20px;
+			color: #18352e;
+			background: #f5f7f3;
+			font-size: 11pt;
+		}
+		.print-container {
+			max-width: 210mm;
+			margin: 0 auto;
+			background: #ffffff;
+			padding: 15mm;
+			border: 1px solid #dce4de;
+			box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+		}
+		.no-print-bar {
+			max-width: 210mm;
+			margin: 0 auto 15px;
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+		}
+		.btn {
+			padding: 8px 16px;
+			background: #173c32;
+			color: #ffffff;
+			border: none;
+			border-radius: 4px;
+			cursor: pointer;
+			font-weight: bold;
+			text-decoration: none;
+			font-size: 13px;
+		}
+		.btn-outline {
+			background: transparent;
+			color: #173c32;
+			border: 1px solid #173c32;
+		}
+		.letterhead-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			border-bottom: 2px solid #173c32;
+			padding-bottom: 12px;
+			margin-bottom: 16px;
+		}
+		.brand-title {
+			margin: 0;
+			color: #173c32;
+			font-size: 18pt;
+			font-weight: 800;
+		}
+		.brand-subtitle {
+			margin: 4px 0 0;
+			color: #666666;
+			font-size: 8.5pt;
+		}
+		.voucher-badge {
+			text-align: right;
+		}
+		.voucher-badge h2 {
+			margin: 0;
+			color: #173c32;
+			font-size: 14pt;
+		}
+		.voucher-badge span {
+			font-size: 9pt;
+			color: #666666;
+		}
+		table.data-table {
+			width: 100%;
+			border-collapse: collapse;
+			margin-bottom: 16px;
+		}
+		table.data-table th, table.data-table td {
+			padding: 6px 10px;
+			border: 1px solid #dce4de;
+			font-size: 9pt;
+		}
+		table.data-table th {
+			background: #f8faf7;
+			color: #444444;
+			text-align: left;
+			width: 25%;
+		}
+		table.items-table {
+			width: 100%;
+			border-collapse: collapse;
+			margin-bottom: 16px;
+		}
+		table.items-table th {
+			background: #173c32;
+			color: #ffffff;
+			padding: 8px 10px;
+			font-size: 9pt;
+			text-align: left;
+		}
+		table.items-table td {
+			padding: 8px 10px;
+			border: 1px solid #dce4de;
+			font-size: 9pt;
+		}
+		.signatures {
+			margin-top: 35px;
+			display: grid;
+			grid-template-columns: repeat(3, 1fr);
+			gap: 20px;
+			text-align: center;
+			page-break-inside: avoid;
+		}
+		.sig-line {
+			border-top: 1px solid #222222;
+			margin-top: 45px;
+			padding-top: 6px;
+			font-size: 8.5pt;
+			font-weight: 600;
+		}
+		.official-footer {
+			margin-top: 30px;
+			border-top: 1px solid #e0e0e0;
+			padding-top: 8px;
+			display: flex;
+			justify-content: space-between;
+			font-size: 7.5pt;
+			color: #888888;
+		}
+
+		@media print {
+			body {
+				background: #ffffff;
+				padding: 0;
+			}
+			.print-container {
+				border: none;
+				box-shadow: none;
+				padding: 0;
+				width: 100%;
+				max-width: 100%;
+			}
+			.no-print-bar {
+				display: none !important;
+			}
+		}
+	</style>
+</head>
+<body>
+
+	<div class="no-print-bar">
+		<a href="{% url 'expense-detail' expense.pk %}" class="btn btn-outline">← Back to Expense</a>
+		<div style="display: flex; gap: 8px;">
+			<a href="{% url 'expense-pdf' expense.pk %}" class="btn btn-outline">Download PDF</a>
+			<button onclick="window.print()" class="btn">🖨 Print Voucher</button>
+		</div>
+	</div>
+
+	<div class="print-container">
+		<div class="letterhead-header">
+			<div>
+				<h1 class="brand-title">{{ COMPANY_NAME|default:"OMS WORKFORCE & PEOPLE OPERATIONS" }}</h1>
+				<p class="brand-subtitle">Finance & Accounts Department · Dubai, UAE</p>
+			</div>
+			<div class="voucher-badge">
+				<h2>PAYMENT VOUCHER</h2>
+				<span>REF #: <strong>{{ expense.reference_number }}</strong></span>
+			</div>
+		</div>
+
+		<table class="data-table">
+			<tr>
+				<th>Payee / Vendor</th>
+				<td><strong>{{ expense.vendor_name|default:"Direct Reimbursement" }}</strong></td>
+				<th>Voucher Date</th>
+				<td>{{ expense.bill_date|date:"d M Y" }}</td>
+			</tr>
+			<tr>
+				<th>Claimant Employee</th>
+				<td>{{ expense.employee.full_name|default:"Company General" }}</td>
+				<th>Department</th>
+				<td>{{ expense.department.name|default:"—" }}</td>
+			</tr>
+			<tr>
+				<th>Expense Category</th>
+				<td>{{ expense.category|default:"General" }}</td>
+				<th>Payment Status</th>
+				<td><strong>{{ expense.get_status_display }}</strong></td>
+			</tr>
+			<tr>
+				<th>Payment Method</th>
+				<td>{{ expense.get_payment_method_display }}</td>
+				<th>Invoice / Bill No.</th>
+				<td>{{ expense.invoice_number|default:"—" }}</td>
+			</tr>
+		</table>
+
+		<h3 style="margin: 16px 0 8px; font-size: 11pt; color: #173c32;">Itemized Breakdown</h3>
+		<table class="items-table">
+			<thead>
+				<tr>
+					<th>Item Description</th>
+					<th style="width: 15%; text-align: right;">Quantity</th>
+					<th style="width: 20%; text-align: right;">Unit Price</th>
+					<th style="width: 20%; text-align: right;">Total Amount</th>
+				</tr>
+			</thead>
+			<tbody>
+				{% for item in items %}
+				<tr>
+					<td>{{ item.product_name }}</td>
+					<td style="text-align: right;">{{ item.quantity|floatformat:2 }}</td>
+					<td style="text-align: right;">{{ expense.currency }} {{ item.unit_price|floatformat:2 }}</td>
+					<td style="text-align: right;"><strong>{{ expense.currency }} {{ item.line_total|floatformat:2 }}</strong></td>
+				</tr>
+				{% empty %}
+				<tr>
+					<td colspan="3">{{ expense.description|default:"General Expense" }}</td>
+					<td style="text-align: right;"><strong>{{ expense.currency }} {{ expense.amount|floatformat:2 }}</strong></td>
+				</tr>
+				{% endfor %}
+			</tbody>
+			<tfoot>
+				<tr style="background: #edf3ee; font-weight: bold;">
+					<td colspan="3" style="text-align: right; padding: 10px;">TOTAL VOUCHER AMOUNT:</td>
+					<td style="text-align: right; padding: 10px; font-size: 12pt; color: #173c32;">{{ expense.currency }} {{ expense.amount|floatformat:2 }}</td>
+				</tr>
+			</tfoot>
+		</table>
+
+		{% if expense.notes %}
+		<p style="margin: 8px 0; font-size: 9pt; color: #444;"><strong>Notes:</strong> {{ expense.notes }}</p>
+		{% endif %}
+
+		<div class="signatures">
+			<div>
+				<div class="sig-line">Prepared By (Accounts)</div>
+			</div>
+			<div>
+				<div class="sig-line">
+					Approved By: {% if expense.approved_by %}{{ expense.approved_by.get_full_name|default:expense.approved_by.username }}{% else %}Operations Manager{% endif %}
+				</div>
+			</div>
+			<div>
+				<div class="sig-line">Received By (Payee)</div>
+			</div>
+		</div>
+
+		<div class="official-footer">
+			<span>Generated on: {{ print_date|date:"d M Y" }}</span>
+			<span>Confidential & Proprietary · Internal Company Record</span>
+			<span>Page 1 of 1</span>
+		</div>
+	</div>
+
+</body>
+</html>

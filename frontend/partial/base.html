@@ -2,15 +2,26 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>{% block title %}OMS Management{% endblock %}</title>
+    <title>{% block title %}{{ COMPANY_NAME|default:"OMS Operations" }}{% endblock %}</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="OMS Workforce, Employee & Expense Management System">
     <link rel="stylesheet" href="{% static 'css/management.css' %}">
     {% block styles %}{% endblock %}
 </head>
 <body>
-    {% block content %}
+    {% if messages %}
+    <div class="messages-container" role="status" aria-live="polite">
+        {% for message in messages %}
+        <div class="alert-banner alert-{{ message.tags|default:'info' }}">
+            <span>{{ message }}</span>
+            <button type="button" class="alert-close" onclick="this.parentElement.remove()" aria-label="Close message">&times;</button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
 
+    {% block content %}
     {% endblock content %}
 
     {% block scripts %}

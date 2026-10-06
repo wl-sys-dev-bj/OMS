@@ -1,0 +1,108 @@
+{% extends "partial/base.html" %}
+{% load static %}
+
+{% block title %}{{ title }} · {{ COMPANY_NAME }}{% endblock %}
+
+{% block content %}
+<div class="app-shell">
+	<aside class="sidebar">
+		<a class="brand" href="{% url 'home' %}">
+			<span class="brand-mark">O</span>
+			<span><strong>OMS</strong><small>PEOPLE OPERATIONS</small></span>
+		</a>
+		<p class="nav-label">NAVIGATION</p>
+		<nav class="primary-nav">
+			<a class="nav-item" href="{% url 'home' %}"><span class="nav-icon">◫</span>Overview</a>
+			<a class="nav-item" href="{% url 'employee-list' %}"><span class="nav-icon">♙</span>Employees</a>
+			<a class="nav-item active" href="{% url 'expense-list' %}"><span class="nav-icon">💳</span>Expenses</a>
+			<a class="nav-item" href="{% url 'reports-home' %}"><span class="nav-icon">📊</span>Reports</a>
+		</nav>
+		<div class="sidebar-bottom">
+			<a class="logout-link" href="{% url 'logout' %}">Sign out <span aria-hidden="true">↗</span></a>
+		</div>
+	</aside>
+
+	<main class="main-area">
+		<header class="topbar">
+			<div>
+				<p class="eyebrow"><a href="{% url 'expense-list' %}" style="color: inherit; text-decoration: none;">EXPENSES</a> / <span style="color: var(--forest);">FORM</span></p>
+				<h1>{{ title }}</h1>
+			</div>
+			<div class="topbar-meta">
+				<a class="button button-quiet" href="{% if expense %}{% url 'expense-detail' expense.pk %}{% else %}{% url 'expense-list' %}{% endif %}">Cancel</a>
+			</div>
+		</header>
+
+		<form method="POST" enctype="multipart/form-data" class="panel" style="max-width: 860px; margin: 0 auto 30px; padding: 24px;">
+			{% csrf_token %}
+			
+			{% if form.errors %}
+			<div class="alert-banner alert-error" style="margin-bottom: 20px;">
+				<strong>Please correct the following errors:</strong>
+				<ul style="margin: 6px 0 0; padding-left: 20px;">
+					{% for field, errors in form.errors.items %}
+					<li><strong>{{ field }}:</strong> {{ errors|join:", " }}</li>
+					{% endfor %}
+				</ul>
+			</div>
+			{% endif %}
+
+			<div class="form-grid" style="margin-bottom: 20px;">
+				<label>Reference Number
+					{{ form.reference_number }}
+				</label>
+				<label>Payee / Vendor Name
+					{{ form.vendor_name }}
+				</label>
+				<label>Linked Employee
+					{{ form.employee }}
+				</label>
+				<label>Department
+					{{ form.department }}
+				</label>
+				<label>Category (Select or enter below)
+					{{ form.category_ref }}
+				</label>
+				<label>Category Name / Custom
+					{{ form.category }}
+				</label>
+				<label>Amount <em>*</em>
+					{{ form.amount }}
+				</label>
+				<label>Currency
+					{{ form.currency }}
+				</label>
+				<label>Bill Date <em>*</em>
+					{{ form.bill_date }}
+				</label>
+				<label>Due Date
+					{{ form.due_date }}
+				</label>
+				<label>Payment Method
+					{{ form.payment_method }}
+				</label>
+				<label>Approval Status
+					{{ form.status }}
+				</label>
+				<label>Supplier Invoice / Bill No.
+					{{ form.invoice_number }}
+				</label>
+				<label>Receipt Attachment (PDF / JPG / PNG)
+					{{ form.receipt_file }}
+				</label>
+				<label class="wide-field">Description / Purpose
+					{{ form.description }}
+				</label>
+				<label class="wide-field">Internal Notes
+					{{ form.notes }}
+				</label>
+			</div>
+
+			<div class="form-actions" style="border-top: 1px solid var(--line); padding-top: 18px;">
+				<button type="submit" class="button button-dark" style="min-width: 140px;">{{ action }}</button>
+				<a class="button button-quiet" href="{% if expense %}{% url 'expense-detail' expense.pk %}{% else %}{% url 'expense-list' %}{% endif %}">Cancel</a>
+			</div>
+		</form>
+	</main>
+</div>
+{% endblock %}

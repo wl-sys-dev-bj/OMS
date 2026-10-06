@@ -1,0 +1,173 @@
+{% extends "partial/base.html" %}
+{% load static %}
+
+{% block title %}{{ title }} · {{ COMPANY_NAME }}{% endblock %}
+
+{% block content %}
+<div class="app-shell">
+	<aside class="sidebar">
+		<a class="brand" href="{% url 'home' %}">
+			<span class="brand-mark">O</span>
+			<span><strong>OMS</strong><small>PEOPLE OPERATIONS</small></span>
+		</a>
+		<p class="nav-label">NAVIGATION</p>
+		<nav class="primary-nav">
+			<a class="nav-item" href="{% url 'home' %}"><span class="nav-icon">◫</span>Overview</a>
+			<a class="nav-item active" href="{% url 'employee-list' %}"><span class="nav-icon">♙</span>Employees</a>
+			<a class="nav-item" href="{% url 'expense-list' %}"><span class="nav-icon">💳</span>Expenses</a>
+			<a class="nav-item" href="{% url 'reports-home' %}"><span class="nav-icon">📊</span>Reports</a>
+		</nav>
+		<div class="sidebar-bottom">
+			<a class="logout-link" href="{% url 'logout' %}">Sign out <span aria-hidden="true">↗</span></a>
+		</div>
+	</aside>
+
+	<main class="main-area">
+		<header class="topbar">
+			<div>
+				<p class="eyebrow"><a href="{% url 'employee-list' %}" style="color: inherit; text-decoration: none;">EMPLOYEES</a> / <span style="color: var(--forest);">FORM</span></p>
+				<h1>{{ title }}</h1>
+			</div>
+			<div class="topbar-meta">
+				<a class="button button-quiet" href="{% if employee %}{% url 'employee-detail' employee.pk %}{% else %}{% url 'employee-list' %}{% endif %}">Cancel</a>
+			</div>
+		</header>
+
+		<form method="POST" enctype="multipart/form-data" class="panel" style="max-width: 960px; margin: 0 auto 30px; padding: 24px;">
+			{% csrf_token %}
+			
+			{% if form.errors %}
+			<div class="alert-banner alert-error" style="margin-bottom: 20px;">
+				<strong>Please correct the following errors:</strong>
+				<ul style="margin: 6px 0 0; padding-left: 20px;">
+					{% for field, errors in form.errors.items %}
+					<li><strong>{{ field }}:</strong> {{ errors|join:", " }}</li>
+					{% endfor %}
+				</ul>
+			</div>
+			{% endif %}
+
+			<!-- 1. IDENTIFICATION & BASIC INFO -->
+			<h3 style="margin: 0 0 16px; color: var(--forest); border-bottom: 1px solid var(--line); padding-bottom: 8px;">1. Basic Identity</h3>
+			<div class="form-grid" style="margin-bottom: 24px;">
+				<label>Employee ID <em>*</em>
+					{{ form.employee_id }}
+				</label>
+				<label>Full Name <em>*</em>
+					{{ form.full_name }}
+				</label>
+				<label>First Name
+					{{ form.first_name }}
+				</label>
+				<label>Last Name
+					{{ form.last_name }}
+				</label>
+				<label>Date of Birth
+					{{ form.date_of_birth }}
+				</label>
+				<label>Gender
+					{{ form.gender }}
+				</label>
+				<label>Nationality
+					{{ form.nationality }}
+				</label>
+				<label>Marital Status
+					{{ form.marital_status }}
+				</label>
+				<label class="wide-field">Profile Photo
+					{{ form.profile_photo }}
+				</label>
+			</div>
+
+			<!-- 2. CONTACT & EMERGENCY INFO -->
+			<h3 style="margin: 0 0 16px; color: var(--forest); border-bottom: 1px solid var(--line); padding-bottom: 8px;">2. Contact & Addresses</h3>
+			<div class="form-grid" style="margin-bottom: 24px;">
+				<label>Phone Number <em>*</em>
+					{{ form.phone }}
+				</label>
+				<label>Email Address
+					{{ form.email }}
+				</label>
+				<label>Emergency Contact Name
+					{{ form.emergency_contact_name }}
+				</label>
+				<label>Relationship
+					{{ form.emergency_contact_relationship }}
+				</label>
+				<label>Emergency Contact Phone
+					{{ form.emergency_contact_phone }}
+				</label>
+				<label>Work Location
+					{{ form.work_location }}
+				</label>
+				<label class="wide-field">Current Living Address
+					{{ form.current_address }}
+				</label>
+				<label class="wide-field">Permanent Home Country Address
+					{{ form.permanent_address }}
+				</label>
+			</div>
+
+			<!-- 3. EMPLOYMENT & COMPENSATION -->
+			<h3 style="margin: 0 0 16px; color: var(--forest); border-bottom: 1px solid var(--line); padding-bottom: 8px;">3. Employment & Compensation</h3>
+			<div class="form-grid" style="margin-bottom: 24px;">
+				<label>Department
+					{{ form.department }}
+				</label>
+				<label>Designation
+					{{ form.designation }}
+				</label>
+				<label>Job Title
+					{{ form.job_title }}
+				</label>
+				<label>Employment Type
+					{{ form.employment_type }}
+				</label>
+				<label>Employment Status
+					{{ form.status }}
+				</label>
+				<label>Monthly Salary (AED)
+					{{ form.salary }}
+				</label>
+				<label>Joining Date
+					{{ form.joining_date }}
+				</label>
+				<label>Contract Start Date
+					{{ form.contract_start_date }}
+				</label>
+				<label>Contract End Date
+					{{ form.contract_end_date }}
+				</label>
+				<label>Client Account
+					{{ form.client_name }}
+				</label>
+				<label>Direct Supervisor
+					{{ form.supervisor }}
+				</label>
+			</div>
+
+			<!-- 4. OFFICIAL IDENTIFICATION -->
+			<h3 style="margin: 0 0 16px; color: var(--forest); border-bottom: 1px solid var(--line); padding-bottom: 8px;">4. Official Identification</h3>
+			<div class="form-grid" style="margin-bottom: 24px;">
+				<label>Passport Number
+					{{ form.passport_number }}
+				</label>
+				<label>Citizenship / National ID No.
+					{{ form.citizenship_number }}
+				</label>
+				<label>Emirates ID / Resident Card
+					{{ form.national_id_number }}
+				</label>
+				<label>PAN / Tax Registration
+					{{ form.pan_tax_number }}
+				</label>
+			</div>
+
+			<div class="form-actions" style="border-top: 1px solid var(--line); padding-top: 18px;">
+				<button type="submit" class="button button-dark" style="min-width: 140px;">{{ action }} Record</button>
+				<a class="button button-quiet" href="{% if employee %}{% url 'employee-detail' employee.pk %}{% else %}{% url 'employee-list' %}{% endif %}">Cancel</a>
+			</div>
+		</form>
+	</main>
+</div>
+{% endblock %}

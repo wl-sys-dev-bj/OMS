@@ -1,7 +1,7 @@
 {% extends "partial/base.html" %}
 {% load static %}
 
-{% block title %}Operations desk | OMS{% endblock %}
+{% block title %}Operations Desk · {{ COMPANY_NAME }}{% endblock %}
 
 {% block content %}
 <div class="app-shell">
@@ -20,65 +20,179 @@
 			<button class="nav-item" data-section="billing"><span class="nav-icon">▧</span>Billing</button>
 			<button class="nav-item" data-section="expenses"><span class="nav-icon">−</span>Expenses</button>
 		</nav>
+
+		<p class="nav-label" style="margin-top: 18px;">MODULES & REPORTS</p>
+		<nav class="primary-nav" aria-label="Dedicated pages">
+			<a class="nav-item" href="{% url 'employee-list' %}"><span class="nav-icon">👥</span>Employee Directory</a>
+			<a class="nav-item" href="{% url 'expense-list' %}"><span class="nav-icon">💳</span>Expense Register</a>
+			<a class="nav-item" href="{% url 'reports-home' %}"><span class="nav-icon">📊</span>Reports & Analytics</a>
+			{% if request.user.is_superuser or USER_ROLE == 'admin' %}
+			<a class="nav-item" href="{% url 'audit-logs' %}"><span class="nav-icon">📋</span>Audit Trail</a>
+			<a class="nav-item" href="{% url 'admin:index' %}" target="_blank"><span class="nav-icon">⚙</span>Django Admin</a>
+			{% endif %}
+		</nav>
+
 		<div class="sidebar-bottom">
-			<div class="user-chip"><span class="user-avatar">{{ request.user.username|slice:':1'|upper }}</span><span><strong>{{ request.user.get_full_name|default:request.user.username }}</strong><small>Administrator</small></span></div>
+			<div class="user-chip">
+				<span class="user-avatar">{{ request.user.username|slice:':1'|upper }}</span>
+				<span>
+					<strong>{{ request.user.get_full_name|default:request.user.username }}</strong>
+					<small>{{ USER_ROLE|upper }}</small>
+				</span>
+			</div>
 			<a class="logout-link" href="{% url 'logout' %}">Sign out <span aria-hidden="true">↗</span></a>
 		</div>
 	</aside>
 
 	<main class="main-area">
 		<header class="topbar">
-			<div><p class="eyebrow">OPERATIONS / <span id="crumb-current">OVERVIEW</span></p><h1 id="page-title">Overview</h1></div>
-			<div class="topbar-meta"><span class="today-date" id="today-date"></span><span class="online-dot" aria-hidden="true"></span><span>Workspace live</span></div>
+			<div>
+				<p class="eyebrow">OPERATIONS / <span id="crumb-current">OVERVIEW</span></p>
+				<h1 id="page-title">Overview</h1>
+			</div>
+			<div class="topbar-meta">
+				<span class="today-date" id="today-date"></span>
+				<span class="online-dot" aria-hidden="true"></span>
+				<span>Workspace live</span>
+			</div>
 		</header>
 
 		<div id="toast" class="toast" role="status" aria-live="polite"></div>
 		<form class="csrf-source" aria-hidden="true">{% csrf_token %}</form>
 
+		<!-- SECTION: OVERVIEW -->
 		<section class="page-section active" id="section-overview">
-			<div class="section-heading"><div><h2>Good work starts with a clear picture.</h2><p>Current workforce, upcoming arrivals, and client billing at a glance.</p></div><button class="button button-dark" data-go="employees">＋ Add employee</button></div>
+			<div class="section-heading">
+				<div>
+					<h2>Workforce, hiring pipeline, and expenses at a glance.</h2>
+					<p>Real-time telemetry and operational overview across all accounts.</p>
+				</div>
+				<div style="display: flex; gap: 8px;">
+					<a class="button button-dark" href="{% url 'employee-create' %}">＋ Add employee</a>
+					<a class="button button-quiet" href="{% url 'expense-create' %}">＋ Add expense</a>
+				</div>
+			</div>
 			<div class="stat-grid">
-				<article class="stat-card stat-people"><span class="stat-label">EMPLOYEES</span><strong id="stat-employees">—</strong><span class="stat-note">Across all client accounts</span><span class="stat-symbol">♙</span></article>
-				<article class="stat-card stat-joining"><span class="stat-label">JOINING PIPELINE</span><strong id="stat-joinings">—</strong><span class="stat-note">Open hiring records</span><span class="stat-symbol">↗</span></article>
-				<article class="stat-card stat-clients"><span class="stat-label">ACTIVE CLIENTS</span><strong id="stat-clients">—</strong><span class="stat-note">With assigned employees</span><span class="stat-symbol">⌂</span></article>
-				<article class="stat-card stat-billing"><span class="stat-label">UNPAID BILLING</span><strong id="stat-billing">—</strong><span class="stat-note">Sent and overdue invoices</span><span class="stat-symbol">▧</span></article>
+				<article class="stat-card stat-people">
+					<span class="stat-label">EMPLOYEES</span>
+					<strong id="stat-employees">—</strong>
+					<span class="stat-note">Across all client accounts</span>
+					<span class="stat-symbol">♙</span>
+				</article>
+				<article class="stat-card stat-joining">
+					<span class="stat-label">JOINING PIPELINE</span>
+					<strong id="stat-joinings">—</strong>
+					<span class="stat-note">Open hiring records</span>
+					<span class="stat-symbol">↗</span>
+				</article>
+				<article class="stat-card stat-clients">
+					<span class="stat-label">ACTIVE CLIENTS</span>
+					<strong id="stat-clients">—</strong>
+					<span class="stat-note">With assigned employees</span>
+					<span class="stat-symbol">⌂</span>
+				</article>
+				<article class="stat-card stat-billing">
+					<span class="stat-label">UNPAID BILLING</span>
+					<strong id="stat-billing">—</strong>
+					<span class="stat-note">Sent and overdue invoices</span>
+					<span class="stat-symbol">▧</span>
+				</article>
 			</div>
 			<div class="overview-grid">
-				<section class="panel"><div class="panel-heading"><div><p class="eyebrow">PEOPLE</p><h3>Recently added</h3></div><button class="text-button" data-go="employees">View all <span aria-hidden="true">→</span></button></div><div class="table-wrap"><table><thead><tr><th>EMPLOYEE</th><th>CLIENT</th><th>STATUS</th></tr></thead><tbody id="recent-employees"></tbody></table></div></section>
-				<section class="panel upcoming-panel"><div class="panel-heading"><div><p class="eyebrow">HIRING</p><h3>Joining activity</h3></div><button class="text-button" data-go="joinings">Manage <span aria-hidden="true">→</span></button></div><div id="recent-joinings" class="activity-list"></div></section>
-			</div>
-		</section>
-
-		<section class="page-section" id="section-employees" hidden>
-			<div class="section-heading"><div><p class="eyebrow">EMP DATA</p><h2>Employee records</h2><p>Maintain employee identity, contact details, and client assignment.</p></div></div>
-			<div class="workspace-grid">
-				<section class="panel form-panel"><div class="panel-heading"><div><h3 id="employee-form-title">Add employee</h3><p>Required fields are marked.</p></div></div>
-					<form id="employee-form" class="data-form">
-						<div class="form-grid">
-							<label>Employee ID <em>*</em><input name="employee_id" maxlength="32" required></label>
-							<label>Full name <em>*</em><input name="full_name" maxlength="160" required></label>
-							<label>Phone <em>*</em><input name="phone" type="tel" maxlength="32" required></label>
-							<label>Email<input name="email" type="email" maxlength="254"></label>
-							<label>Nationality<input name="nationality" maxlength="80"></label>
-							<label>Job title<input name="job_title" maxlength="120"></label>
-							<label class="wide-field">Dubai client<input name="client_name" maxlength="160" placeholder="Client or company name"></label>
-							<label>Origin country<input name="origin_country" value="Nepal" maxlength="80"></label>
-							<label>Destination<input name="destination" value="Dubai, UAE" maxlength="100"></label>
-							<label>Status<select name="status"><option value="pending">Pending</option><option value="active">Active</option><option value="on_leave">On leave</option><option value="completed">Completed</option></select></label>
+				<section class="panel">
+					<div class="panel-heading">
+						<div>
+							<p class="eyebrow">PEOPLE</p>
+							<h3>Recently added</h3>
 						</div>
-						<div class="form-actions"><button class="button button-dark" type="submit" id="employee-submit">Save employee</button><button class="button button-quiet" type="reset" id="employee-cancel" hidden>Cancel edit</button></div>
-					</form>
+						<a class="text-button" href="{% url 'employee-list' %}">View directory <span aria-hidden="true">→</span></a>
+					</div>
+					<div class="table-wrap">
+						<table>
+							<thead>
+								<tr>
+									<th>EMPLOYEE</th>
+									<th>CLIENT</th>
+									<th>STATUS</th>
+								</tr>
+							</thead>
+							<tbody id="recent-employees"></tbody>
+						</table>
+					</div>
 				</section>
-				<section class="panel list-panel"><div class="panel-heading"><div><h3>Directory</h3><p id="employee-result-count">All employees</p></div><label class="search-box"><span aria-hidden="true">⌕</span><input id="employee-search" type="search" placeholder="Search employees" aria-label="Search employees"></label></div>
-					<div class="table-wrap"><table><thead><tr><th>EMPLOYEE</th><th>CONTACT</th><th>CLIENT</th><th>STATUS</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody id="employees-table"></tbody></table></div>
+				<section class="panel upcoming-panel">
+					<div class="panel-heading">
+						<div>
+							<p class="eyebrow">HIRING</p>
+							<h3>Joining activity</h3>
+						</div>
+						<button class="text-button" data-go="joinings">Manage <span aria-hidden="true">→</span></button>
+					</div>
+					<div id="recent-joinings" class="activity-list"></div>
 				</section>
 			</div>
 		</section>
 
+		<!-- SECTION: EMPLOYEES -->
+		<section class="page-section" id="section-employees" hidden>
+			<div class="section-heading">
+				<div>
+					<p class="eyebrow">EMP DATA</p>
+					<h2>Employee records</h2>
+					<p>Maintain employee identity, contact details, and client assignments.</p>
+				</div>
+				<div style="display: flex; gap: 8px;">
+					<a class="button button-quiet" href="{% url 'employee-list' %}">Full Directory Page <span aria-hidden="true">↗</span></a>
+					<a class="button button-dark" href="{% url 'employee-create' %}">＋ Add new employee</a>
+				</div>
+			</div>
+			<div class="workspace-grid single-panel-grid">
+				<section class="panel list-panel">
+					<div class="panel-heading">
+						<div>
+							<h3>Directory</h3>
+							<p id="employee-result-count">All employees</p>
+						</div>
+						<label class="search-box">
+							<span aria-hidden="true">⌕</span>
+							<input id="employee-search" type="search" placeholder="Search employees..." aria-label="Search employees">
+						</label>
+					</div>
+					<div class="table-wrap">
+						<table>
+							<thead>
+								<tr>
+									<th>EMPLOYEE</th>
+									<th>CONTACT</th>
+									<th>CLIENT</th>
+									<th>STATUS</th>
+									<th><span class="sr-only">Actions</span></th>
+								</tr>
+							</thead>
+							<tbody id="employees-table"></tbody>
+						</table>
+					</div>
+				</section>
+			</div>
+		</section>
+
+		<!-- SECTION: NEW JOINING -->
 		<section class="page-section" id="section-joinings" hidden>
-			<div class="section-heading"><div><p class="eyebrow">NEW JOINING</p><h2>Dubai hiring records</h2><p>Capture applicant and employment details, then print the completed joining form.</p></div></div>
+			<div class="section-heading">
+				<div>
+					<p class="eyebrow">NEW JOINING</p>
+					<h2>Dubai hiring records</h2>
+					<p>Capture applicant and employment details, then print the completed official joining form.</p>
+				</div>
+			</div>
 			<div class="workspace-grid joining-layout">
-				<section class="panel form-panel joining-entry-panel"><div class="panel-heading"><div><h3>Joining application</h3><p>Complete the application and employment details.</p></div></div>
+				<section class="panel form-panel joining-entry-panel">
+					<div class="panel-heading">
+						<div>
+							<h3>Joining application</h3>
+							<p>Complete application, salary terms, and passport photo.</p>
+						</div>
+					</div>
 					<form id="joining-form" class="data-form" enctype="multipart/form-data">
 						<div class="joining-form-layout">
 							<div class="joining-paper-fields">
@@ -86,11 +200,25 @@
 									<label>Application date<input name="application_date" type="date"></label>
 									<label>Joining date <em>*</em><input name="joining_date" type="date" required></label>
 									<label>Name <em>*</em><input name="applicant_name" id="joining-applicant-name" maxlength="160" required></label>
-									<label>Link existing employee<select name="employee" id="joining-employee"><option value="">Create a new employee</option></select></label>
+									<label>Link existing employee
+										<select name="employee" id="joining-employee">
+											<option value="">Create a new employee</option>
+										</select>
+									</label>
 									<label>Father name<input name="father_name" maxlength="160"></label>
-									<label>Nationality<input name="nationality" list="nationality-options" maxlength="80"></label>
+									<label>Nationality
+										<input name="nationality" list="nationality-options" maxlength="80">
+									</label>
 									<datalist id="nationality-options">
-										<option value="Nepali"></option><option value="Indian"></option><option value="Pakistani"></option><option value="Bangladeshi"></option><option value="Filipino"></option><option value="Sri Lankan"></option><option value="Indonesian"></option><option value="Kenyan"></option><option value="Other"></option>
+										<option value="Nepali"></option>
+										<option value="Indian"></option>
+										<option value="Pakistani"></option>
+										<option value="Bangladeshi"></option>
+										<option value="Filipino"></option>
+										<option value="Sri Lankan"></option>
+										<option value="Indonesian"></option>
+										<option value="Kenyan"></option>
+										<option value="Other"></option>
 									</datalist>
 									<label>City<input name="city" maxlength="100"></label>
 									<label>Visa status<input name="visa_status" maxlength="40"></label>
@@ -108,34 +236,74 @@
 									<label>2nd home no<input name="secondary_home_number" maxlength="32"></label>
 								</div>
 								<div class="form-grid">
-									<label>Basic salary<input name="basic_salary" type="number" min="0" step="0.01"></label>
+									<label>Basic salary (AED)<input name="basic_salary" type="number" min="0" step="0.01"></label>
 									<label>Commission (%)<input name="commission_percent" type="number" min="0" max="100" step="0.01"></label>
 									<label>Allowance<input name="allowance" maxlength="160"></label>
-									<label class="check-field"><input name="room_provided" type="checkbox" value="true"> Room provided</label>
+									<label class="check-field">
+										<input name="room_provided" type="checkbox" value="true">
+										<span>Room provided by company</span>
+									</label>
 									<label>Training period<input name="training_period" maxlength="80"></label>
 									<label>Starting date<input name="starting_date" type="date"></label>
 									<label>End date<input name="end_date" type="date"></label>
-									<label>Monthly target<input name="monthly_target" type="number" min="0" step="0.01"></label>
-									<label>Visa charges<input name="visa_charges" type="number" min="0" step="0.01"></label>
+									<label>Monthly target (AED)<input name="monthly_target" type="number" min="0" step="0.01"></label>
+									<label>Visa charges (AED)<input name="visa_charges" type="number" min="0" step="0.01"></label>
 									<label>Job title<input name="job_title" maxlength="120"></label>
 									<label>HR name<input name="hr_name" maxlength="160"></label>
 									<label>HR phone<input name="hr_phone" maxlength="32"></label>
 									<label>EMP# after joining<input name="assigned_employee_number" maxlength="32"></label>
-									<label class="wide-field photo-upload">Passport size photo<input name="passport_photo" type="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png"></label>
+									<label class="wide-field photo-upload">
+										Passport size photo
+										<input name="passport_photo" id="joining-passport-photo" type="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png">
+									</label>
 								</div>
 							</div>
-							<div class="joining-photo-frame"><img id="joining-photo-preview" alt="Passport-size photo preview" hidden><span>Passport<br>size photo<br>here</span></div>
+							<div class="joining-photo-frame">
+								<img id="joining-photo-preview" alt="Passport-size photo preview" hidden>
+								<span>Passport<br>size photo<br>here</span>
+							</div>
 						</div>
-						<div class="form-actions"><button class="button button-dark" type="submit">Save joining</button><button class="button button-quiet" type="button" id="print-current-joining">Print form</button></div>
+						<div class="form-actions">
+							<button class="button button-dark" type="submit">Save joining record</button>
+							<button class="button button-quiet" type="button" id="print-current-joining">Print official form</button>
+						</div>
 					</form>
 				</section>
-				<section class="panel list-panel"><div class="panel-heading"><div><h3>Joining pipeline</h3><p>Employee and recruiter details</p></div><label class="search-box"><span aria-hidden="true">⌕</span><input id="joining-search" type="search" placeholder="Search records" aria-label="Search records"></label></div>
-					<div class="table-wrap"><table><thead><tr><th>EMPLOYEE</th><th>CLIENT</th><th>HIRING PERSON</th><th>JOINING</th><th>STATUS</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody id="joinings-table"></tbody></table></div>
+				<section class="panel list-panel">
+					<div class="panel-heading">
+						<div>
+							<h3>Joining pipeline</h3>
+							<p>Employee and recruiter details</p>
+						</div>
+						<label class="search-box">
+							<span aria-hidden="true">⌕</span>
+							<input id="joining-search" type="search" placeholder="Search records" aria-label="Search records">
+						</label>
+					</div>
+					<div class="table-wrap">
+						<table>
+							<thead>
+								<tr>
+									<th>EMPLOYEE</th>
+									<th>CLIENT</th>
+									<th>HIRING PERSON</th>
+									<th>JOINING</th>
+									<th>STATUS</th>
+									<th><span class="sr-only">Actions</span></th>
+								</tr>
+							</thead>
+							<tbody id="joinings-table"></tbody>
+						</table>
+					</div>
 				</section>
 			</div>
+
+			<!-- OFFICIAL PRINT SHEET (PRESERVED EXACT FORMAT) -->
 			<div id="joining-print-sheet" class="joining-print-sheet" aria-hidden="true">
 				<div class="joining-print-border">
-					<header class="joining-print-header"><h1>JOINING FORM</h1></header>
+					<header class="joining-print-header">
+						<h1>JOINING FORM</h1>
+					</header>
 					<div class="joining-print-applicant">
 						<div class="joining-print-grid">
 							<div class="print-line"><span>Application Date:</span><strong data-print-field="application_date"></strong></div>
@@ -150,18 +318,37 @@
 							<div class="print-line"><span>Citizenship No:</span><strong data-print-field="citizenship_number"></strong></div>
 							<div class="print-line"><span>Passport Expiry:</span><strong data-print-field="passport_expiry"></strong></div>
 						</div>
-						<div class="joining-print-photo"><img id="joining-print-photo-image" alt="Passport-size photo" hidden><span id="joining-print-photo-placeholder">Passport Size<br>Photo<br>here</span></div>
+						<div class="joining-print-photo">
+							<img id="joining-print-photo-image" alt="Passport-size photo" hidden>
+							<span id="joining-print-photo-placeholder">Passport Size<br>Photo<br>here</span>
+						</div>
 					</div>
-					<table class="joining-print-phones"><tbody>
-						<tr><th>Mobile No</th><td data-print-field="mobile_number"></td><th>2nd Mobile No</th><td data-print-field="secondary_mobile_number"></td></tr>
-						<tr><th>What's App</th><td data-print-field="whatsapp_number"></td><th>2nd What's App</th><td data-print-field="secondary_whatsapp_number"></td></tr>
-						<tr><th>Home No</th><td data-print-field="home_number"></td><th>2nd Home No</th><td data-print-field="secondary_home_number"></td></tr>
-					</tbody></table>
+					<table class="joining-print-phones">
+						<tbody>
+							<tr>
+								<th>Mobile No</th>
+								<td data-print-field="mobile_number"></td>
+								<th>2nd Mobile No</th>
+								<td data-print-field="secondary_mobile_number"></td>
+							</tr>
+							<tr>
+								<th>What's App</th>
+								<td data-print-field="whatsapp_number"></td>
+								<th>2nd What's App</th>
+								<td data-print-field="secondary_whatsapp_number"></td>
+							</tr>
+							<tr>
+								<th>Home No</th>
+								<td data-print-field="home_number"></td>
+								<th>2nd Home No</th>
+								<td data-print-field="secondary_home_number"></td>
+							</tr>
+						</tbody>
+					</table>
 					<div class="joining-print-terms">
 						<div class="print-term"><span>Basic Salary:</span><strong data-print-field="basic_salary"></strong></div>
 						<div class="print-term"><span>Commission (%):</span><strong data-print-field="commission_percent"></strong></div>
 						<div class="print-term"><span>Allowance:</span><strong data-print-field="allowance"></strong></div>
-						<div class="print-term print-room"><span>Room Provided</span><strong data-print-field="room_provided"></strong></div>
 						<div class="print-term"><span>Training Period:</span><strong data-print-field="training_period"></strong></div>
 						<div class="print-term"><span>Starting Date:</span><strong data-print-field="starting_date"></strong></div>
 						<div class="print-term"><span>End Date:</span><strong data-print-field="end_date"></strong></div>
@@ -172,7 +359,8 @@
 						<div class="print-term"><span>HR Phone:</span><strong data-print-field="hr_phone"></strong></div>
 						<div class="print-term print-employee-number"><span>EMP#</span><strong data-print-field="assigned_employee_number"></strong><small>Only to be Issued after joining</small></div>
 					</div>
-					<div class="joining-print-acknowledgment"><strong>Applicant Acknowledgment:</strong>
+					<div class="joining-print-acknowledgment">
+						<strong>Applicant Acknowledgment:</strong>
 						<p>I. I am happy to confirm that all aspects have been fully clarified on our end and within the company.</p>
 						<p>II. We are completely satisfied with the current alignment and ready to move forward.</p>
 						<p>III. I have no further questions. Kindly close my file.</p>
@@ -186,117 +374,357 @@
 			</div>
 		</section>
 
+		<!-- SECTION: DOCUMENTS -->
 		<section class="page-section" id="section-documents" hidden>
-			<div class="section-heading"><div><p class="eyebrow">SECURE FILES</p><h2>Employee documents</h2><p>Store passport, photo, contract, and other employee files securely.</p></div></div>
+			<div class="section-heading">
+				<div>
+					<p class="eyebrow">SECURE FILES</p>
+					<h2>Employee documents</h2>
+					<p>Store passport, photo, contract, and other employee files securely.</p>
+				</div>
+			</div>
 			<div class="workspace-grid">
-				<section class="panel form-panel"><div class="panel-heading"><div><h3>Upload a document</h3><p>PDF, JPG, PNG, or Word file · 10 MB maximum</p></div></div>
+				<section class="panel form-panel">
+					<div class="panel-heading">
+						<div>
+							<h3>Upload a document</h3>
+							<p>PDF, JPG, PNG, or Word file · 10 MB maximum</p>
+						</div>
+					</div>
 					<form id="document-form" class="data-form" enctype="multipart/form-data">
 						<div class="form-grid">
-							<label class="wide-field">Employee <em>*</em><select name="employee" id="document-employee" required><option value="">Select employee</option></select></label>
-							<label class="wide-field">Document name <em>*</em><input name="title" maxlength="120" placeholder="e.g. Passport scan" required></label>
-							<label>Category<select name="category"><option value="passport">Passport</option><option value="photo">Photo</option><option value="contract">Contract</option><option value="other">Other</option></select></label>
-							<label class="wide-field">Choose file <em>*</em><input name="file" type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" required></label>
+							<label class="wide-field">Employee <em>*</em>
+								<select name="employee" id="document-employee" required>
+									<option value="">Select employee</option>
+								</select>
+							</label>
+							<label class="wide-field">Document title <em>*</em>
+								<input name="title" maxlength="120" placeholder="e.g. Passport scan" required>
+							</label>
+							<label>Category
+								<select name="category">
+									<option value="passport">Passport</option>
+									<option value="photo">Photo</option>
+									<option value="contract">Contract</option>
+									<option value="visa">Visa</option>
+									<option value="certificate">Certificate</option>
+									<option value="id_card">ID Card</option>
+									<option value="other">Other</option>
+								</select>
+							</label>
+							<label class="wide-field">Choose file <em>*</em>
+								<input name="file" type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" required>
+							</label>
 						</div>
-						<div class="form-actions"><button class="button button-dark" type="submit">Upload document</button></div>
+						<div class="form-actions">
+							<button class="button button-dark" type="submit">Upload document</button>
+						</div>
 					</form>
 				</section>
-				<section class="panel list-panel"><div class="panel-heading"><div><h3>Document library</h3><p>Files linked to employee records</p></div></div>
-					<div class="table-wrap"><table><thead><tr><th>DOCUMENT</th><th>EMPLOYEE</th><th>CATEGORY</th><th>UPLOADED</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody id="documents-table"></tbody></table></div>
+				<section class="panel list-panel">
+					<div class="panel-heading">
+						<div>
+							<h3>Document library</h3>
+							<p>Secure files linked to employee records</p>
+						</div>
+					</div>
+					<div class="table-wrap">
+						<table>
+							<thead>
+								<tr>
+									<th>DOCUMENT</th>
+									<th>EMPLOYEE</th>
+									<th>CATEGORY</th>
+									<th>UPLOADED</th>
+									<th><span class="sr-only">Actions</span></th>
+								</tr>
+							</thead>
+							<tbody id="documents-table"></tbody>
+						</table>
+					</div>
 				</section>
 			</div>
 		</section>
 
+		<!-- SECTION: CLIENTS -->
 		<section class="page-section" id="section-clients" hidden>
-			<div class="section-heading"><div><p class="eyebrow">CLIENT DIRECTORY</p><h2>Dubai client accounts</h2><p>Client assignments are summarized from employee and joining records.</p></div></div>
+			<div class="section-heading">
+				<div>
+					<p class="eyebrow">CLIENT DIRECTORY</p>
+					<h2>Client accounts & assignments</h2>
+					<p>Client assignments are aggregated from employee and hiring records.</p>
+				</div>
+			</div>
 			<div id="clients-list" class="client-list"></div>
 		</section>
 
+		<!-- SECTION: BILLING -->
 		<section class="page-section" id="section-billing" hidden>
-			<div class="section-heading"><div><p class="eyebrow">BILLING</p><h2>Client invoices</h2><p>Track billing details and print the current invoice register.</p></div><button class="button button-quiet" id="print-billing" type="button">Print register <span aria-hidden="true">↗</span></button></div>
+			<div class="section-heading">
+				<div>
+					<p class="eyebrow">BILLING</p>
+					<h2>Client invoices</h2>
+					<p>Track client billing details and print invoice registers.</p>
+				</div>
+				<button class="button button-quiet" id="print-billing" type="button">Print register <span aria-hidden="true">↗</span></button>
+			</div>
 			<div class="workspace-grid">
-				<section class="panel form-panel"><div class="panel-heading"><div><h3>New billing record</h3><p>Invoice details for future printing.</p></div></div>
+				<section class="panel form-panel">
+					<div class="panel-heading">
+						<div>
+							<h3>New billing record</h3>
+							<p>Create invoice record for client services.</p>
+						</div>
+					</div>
 					<form id="billing-form" class="data-form">
 						<div class="form-grid">
 							<label>Invoice number <em>*</em><input name="invoice_number" maxlength="40" required></label>
-							<label>Dubai client <em>*</em><input name="client_name" maxlength="160" required></label>
+							<label>Client name <em>*</em><input name="client_name" maxlength="160" required></label>
 							<label class="wide-field">Description <em>*</em><input name="description" maxlength="240" required></label>
-							<label>Amount <em>*</em><input name="amount" type="number" min="0" step="0.01" required></label>
+							<label>Amount (AED) <em>*</em><input name="amount" type="number" min="0" step="0.01" required></label>
 							<label>Currency<input name="currency" value="AED" maxlength="3" required></label>
 							<label>Bill date <em>*</em><input name="bill_date" type="date" required></label>
-							<label>Status<select name="status"><option value="draft">Draft</option><option value="sent">Sent</option><option value="paid">Paid</option><option value="overdue">Overdue</option></select></label>
+							<label>Status
+								<select name="status">
+									<option value="draft">Draft</option>
+									<option value="sent">Sent</option>
+									<option value="paid">Paid</option>
+									<option value="overdue">Overdue</option>
+								</select>
+							</label>
 						</div>
-						<div class="form-actions"><button class="button button-dark" type="submit">Save invoice</button></div>
+						<div class="form-actions">
+							<button class="button button-dark" type="submit">Save invoice</button>
+						</div>
 					</form>
 				</section>
-				<section class="panel list-panel"><div class="panel-heading"><div><h3>Billing register</h3><p>Use print to prepare a paper copy.</p></div></div>
-					<div class="table-wrap"><table><thead><tr><th>INVOICE</th><th>CLIENT</th><th>DESCRIPTION</th><th>AMOUNT</th><th>STATUS</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody id="billing-table"></tbody></table></div>
+				<section class="panel list-panel">
+					<div class="panel-heading">
+						<div>
+							<h3>Billing register</h3>
+							<p>All recorded invoices</p>
+						</div>
+					</div>
+					<div class="table-wrap">
+						<table>
+							<thead>
+								<tr>
+									<th>INVOICE</th>
+									<th>CLIENT</th>
+									<th>DESCRIPTION</th>
+									<th>AMOUNT</th>
+									<th>STATUS</th>
+									<th><span class="sr-only">Actions</span></th>
+								</tr>
+							</thead>
+							<tbody id="billing-table"></tbody>
+						</table>
+					</div>
 				</section>
 			</div>
 		</section>
 
+		<!-- SECTION: EXPENSES -->
 		<section class="page-section" id="section-expenses" hidden>
-			<div class="section-heading"><div><p class="eyebrow">EXPENSES</p><h2>Expense bills</h2><p>Record supplier bills, due dates, and payment status.</p></div><button class="button button-quiet" id="print-expenses" type="button">Print register <span aria-hidden="true">↗</span></button></div>
+			<div class="section-heading">
+				<div>
+					<p class="eyebrow">EXPENSES</p>
+					<h2>Expense bills & vouchers</h2>
+					<p>Record supplier bills, itemized line items, and payment approvals.</p>
+				</div>
+				<div style="display: flex; gap: 8px;">
+					<a class="button button-quiet" href="{% url 'expense-list' %}">Full Expense Register <span aria-hidden="true">↗</span></a>
+					<button class="button button-quiet" id="print-expenses" type="button">Print register <span aria-hidden="true">↗</span></button>
+				</div>
+			</div>
 			<div class="expense-workspace">
-				<section class="panel expense-composer"><div class="panel-heading"><div><h3 id="expense-form-title">New expense bill</h3><p>Add products to calculate the bill total.</p></div></div>
+				<section class="panel expense-composer">
+					<div class="panel-heading">
+						<div>
+							<h3 id="expense-form-title">New expense bill</h3>
+							<p>Add products or enter details to calculate bill total.</p>
+						</div>
+					</div>
 					<form id="expense-form" class="data-form">
 						<div class="form-grid">
-							<label>Reference number<input name="reference_number" maxlength="40" placeholder="Optional"></label>
+							<label>Reference number<input name="reference_number" maxlength="40" placeholder="Auto-generated if blank"></label>
 							<label>Vendor / payee <em>*</em><input name="vendor_name" maxlength="160" required></label>
 							<label>Bill date <em>*</em><input name="bill_date" type="date" required></label>
 							<label>Due date<input name="due_date" type="date"></label>
 							<label>Paid date<input name="paid_date" type="date"></label>
-							<label>Status<select name="status"><option value="unpaid">Unpaid</option><option value="paid">Paid</option><option value="overdue">Overdue</option></select></label>
-							<label class="wide-field">Notes<textarea name="notes" rows="3" maxlength="2000"></textarea></label>
+							<label>Status
+								<select name="status">
+									<option value="pending">Pending Approval</option>
+									<option value="approved">Approved</option>
+									<option value="paid">Paid</option>
+									<option value="unpaid">Unpaid</option>
+									<option value="overdue">Overdue</option>
+								</select>
+							</label>
+							<label class="wide-field">Notes<textarea name="notes" rows="2" maxlength="2000"></textarea></label>
 						</div>
 						<section class="bill-cart" aria-label="Bill products">
-							<div class="cart-heading"><h4>Bill products</h4><span id="cart-item-count">0 items</span></div>
-							<div class="table-wrap"><table><thead><tr><th>PRODUCT</th><th>PRICE</th><th>QUANTITY</th><th>LINE TOTAL</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody id="expense-cart"></tbody></table></div>
-							<div class="cart-total"><span>Bill total</span><strong id="expense-total">AED 0.00</strong></div>
+							<div class="cart-heading">
+								<h4>Bill products</h4>
+								<span id="cart-item-count">0 items</span>
+							</div>
+							<div class="table-wrap">
+								<table>
+									<thead>
+										<tr>
+											<th>PRODUCT</th>
+											<th>PRICE</th>
+											<th>QUANTITY</th>
+											<th>LINE TOTAL</th>
+											<th><span class="sr-only">Actions</span></th>
+										</tr>
+									</thead>
+									<tbody id="expense-cart"></tbody>
+								</table>
+							</div>
+							<div class="cart-total">
+								<span>Bill total</span>
+								<strong id="expense-total">AED 0.00</strong>
+							</div>
 						</section>
-						<div class="form-actions"><button class="button button-dark" type="submit" id="expense-submit">Save expense bill</button><button class="button button-quiet" type="button" id="expense-cancel" hidden>Cancel edit</button></div>
+						<div class="form-actions">
+							<button class="button button-dark" type="submit" id="expense-submit">Save expense bill</button>
+							<button class="button button-quiet" type="button" id="expense-cancel" hidden>Cancel edit</button>
+						</div>
 					</form>
 				</section>
 				<div class="expense-catalog">
-					<section class="panel"><div class="panel-heading"><div><h3>Categories</h3><p>Create reusable product categories.</p></div></div>
-						<form id="expense-category-form" class="catalog-form category-form"><label class="sr-only" for="expense-category-name">Category name</label><input id="expense-category-name" name="name" maxlength="80" placeholder="New category name" required><button class="button button-dark" type="submit">Add category</button></form>
+					<section class="panel">
+						<div class="panel-heading">
+							<div>
+								<h3>Categories</h3>
+								<p>Manage reusable expense categories.</p>
+							</div>
+						</div>
+						<form id="expense-category-form" class="catalog-form category-form">
+							<label class="sr-only" for="expense-category-name">Category name</label>
+							<input id="expense-category-name" name="name" maxlength="80" placeholder="New category name" required>
+							<button class="button button-dark" type="submit">Add category</button>
+						</form>
 						<div id="expense-category-list" class="category-list"></div>
 					</section>
-					<section class="panel"><div class="panel-heading"><div><h3>Product catalog</h3><p>Add products and their unit prices.</p></div></div>
+					<section class="panel">
+						<div class="panel-heading">
+							<div>
+								<h3>Product catalog</h3>
+								<p>Add products and their unit prices.</p>
+							</div>
+						</div>
 						<form id="expense-product-form" class="catalog-form product-form">
 							<label>Product name<input name="name" maxlength="160" required></label>
-							<label>Category<select name="category" id="expense-product-category" required><option value="">Add a category first</option></select></label>
-							<label>Unit price<input name="unit_price" type="number" min="0.01" step="0.01" required></label>
+							<label>Category
+								<select name="category" id="expense-product-category" required>
+									<option value="">Add a category first</option>
+								</select>
+							</label>
+							<label>Unit price (AED)<input name="unit_price" type="number" min="0.01" step="0.01" required></label>
 							<label>Currency<input name="currency" value="AED" maxlength="3" required></label>
-							<button class="button button-dark" type="submit">Add product</button>
+							<button class="button button-dark" type="submit" style="grid-column: 1 / -1;">Add product</button>
 						</form>
-						<div class="catalog-controls"><label class="sr-only" for="expense-category-filter">Filter products by category</label><select id="expense-category-filter"><option value="">All categories</option></select><label class="search-box"><span aria-hidden="true">⌕</span><input id="expense-product-search" type="search" placeholder="Find a product" aria-label="Search catalog products"></label></div>
-						<div class="table-wrap"><table><thead><tr><th>PRODUCT</th><th>CATEGORY</th><th>PRICE</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody id="expense-products-table"></tbody></table></div>
+						<div class="catalog-controls">
+							<select id="expense-category-filter">
+								<option value="">All categories</option>
+							</select>
+							<label class="search-box">
+								<span aria-hidden="true">⌕</span>
+								<input id="expense-product-search" type="search" placeholder="Find a product" aria-label="Search catalog products">
+							</label>
+						</div>
+						<div class="table-wrap">
+							<table>
+								<thead>
+									<tr>
+										<th>PRODUCT</th>
+										<th>CATEGORY</th>
+										<th>PRICE</th>
+										<th><span class="sr-only">Actions</span></th>
+									</tr>
+								</thead>
+								<tbody id="expense-products-table"></tbody>
+							</table>
+						</div>
 					</section>
 				</div>
 			</div>
-			<section class="panel expense-register"><div class="panel-heading"><div><h3>Expense register</h3><p>Search bills by vendor, category, or reference.</p></div><label class="search-box"><span aria-hidden="true">⌕</span><input id="expense-search" type="search" placeholder="Search expenses" aria-label="Search expense bills"></label></div>
-				<div class="table-wrap"><table><thead><tr><th>BILL</th><th>VENDOR</th><th>CATEGORY</th><th>PRODUCTS</th><th>AMOUNT</th><th>DUE</th><th>STATUS</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody id="expenses-table"></tbody></table></div>
+			<section class="panel expense-register">
+				<div class="panel-heading">
+					<div>
+						<h3>Expense register</h3>
+						<p>Search bills by vendor, category, or reference number.</p>
+					</div>
+					<label class="search-box">
+						<span aria-hidden="true">⌕</span>
+						<input id="expense-search" type="search" placeholder="Search expenses" aria-label="Search expense bills">
+					</label>
+				</div>
+				<div class="table-wrap">
+					<table>
+						<thead>
+							<tr>
+								<th>BILL</th>
+								<th>VENDOR</th>
+								<th>CATEGORY</th>
+								<th>PRODUCTS</th>
+								<th>AMOUNT</th>
+								<th>DUE</th>
+								<th>STATUS</th>
+								<th><span class="sr-only">Actions</span></th>
+							</tr>
+						</thead>
+						<tbody id="expenses-table"></tbody>
+					</table>
+				</div>
 			</section>
 		</section>
+
+		<!-- EMPLOYEE DETAIL OVERLAY / SLIDEOUT (PRESERVED & EXPANDED) -->
+		<div id="employee-detail-overlay" class="employee-detail-overlay" hidden>
+			<div class="employee-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="employee-detail-title">
+				<header class="employee-detail-header">
+					<div>
+						<p class="eyebrow">EMPLOYEE RECORD</p>
+						<h2 id="employee-detail-title">Employee Profile</h2>
+						<p id="employee-detail-subtitle"></p>
+					</div>
+					<div style="display: flex; gap: 8px;">
+						<button class="button button-dark" type="button" id="employee-detail-print">Print joining sheet</button>
+						<a class="button button-quiet" id="employee-full-profile-link" href="#">Open Full Profile Page <span aria-hidden="true">↗</span></a>
+						<button class="button button-quiet" type="button" id="employee-detail-close">Close ✕</button>
+					</div>
+				</header>
+				<div class="employee-detail-content">
+					<section class="employee-detail-section">
+						<h3>Employee details</h3>
+						<dl class="employee-detail-grid" id="employee-detail-grid"></dl>
+					</section>
+					<section class="employee-detail-section">
+						<h3>Joining details</h3>
+						<dl class="employee-detail-grid" id="employee-joining-grid"></dl>
+					</section>
+					<section class="employee-detail-section">
+						<h3>Uploaded documents</h3>
+						<div id="employee-detail-documents" class="employee-document-list"></div>
+					</section>
+					<section class="employee-preview-section">
+						<div class="employee-preview-heading">
+							<div>
+								<h3>Printable joining sheet preview</h3>
+								<p>Official Dubai A4 document formatted for letterhead printing.</p>
+							</div>
+						</div>
+						<div id="employee-print-sheet-slot" class="employee-print-sheet-slot"></div>
+					</section>
+				</div>
+			</div>
+		</div>
+
 	</main>
 </div>
-
-	<div id="employee-detail-overlay" class="employee-detail-overlay" hidden>
-		<section class="employee-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="employee-detail-title">
-			<header class="employee-detail-header">
-				<div><p class="eyebrow">EMPLOYEE RECORD</p><h2 id="employee-detail-title"></h2><p id="employee-detail-subtitle"></p></div>
-				<button class="button button-quiet" type="button" id="employee-detail-close">Close</button>
-			</header>
-			<div class="employee-detail-content">
-				<section class="employee-detail-section"><h3>Employee details</h3><dl id="employee-detail-grid" class="employee-detail-grid"></dl></section>
-				<section class="employee-detail-section"><h3>Joining details</h3><dl id="employee-joining-grid" class="employee-detail-grid"></dl></section>
-				<section class="employee-detail-section"><h3>Documents</h3><div id="employee-detail-documents" class="employee-document-list"></div></section>
-				<section class="employee-preview-section"><div class="employee-preview-heading"><div><h3>Joining form preview</h3><p>Review the populated form before printing.</p></div><button class="button button-dark" type="button" id="employee-detail-print">Print form</button></div>
-					<div id="employee-print-sheet-slot" class="employee-print-sheet-slot"></div>
-				</section>
-			</div>
-		</section>
-	</div>
 {% endblock %}
 
 {% block scripts %}

@@ -1,6 +1,6 @@
+import uuid
 from decimal import Decimal
 from pathlib import Path
-import uuid
 
 from django.db import transaction
 from django.urls import reverse
@@ -8,6 +8,8 @@ from rest_framework import serializers
 
 from .models import (
     BillingRecord,
+    Department,
+    Designation,
     Employee,
     EmployeeDocument,
     ExpenseCategory,
@@ -15,17 +17,49 @@ from .models import (
     ExpenseProduct,
     ExpenseRecord,
     HiringRecord,
+    AuditLog,
 )
+
+
+class DepartmentSerializer(serializers.ModelSerializer):
+    employee_count = serializers.IntegerField(source="employees.count", read_only=True)
+
+    class Meta:
+        model = Department
+        fields = ["id", "name", "code", "description", "employee_count", "created_at"]
+        read_only_fields = ["id", "employee_count", "created_at"]
+
+
+class DesignationSerializer(serializers.ModelSerializer):
+    department_name = serializers.CharField(source="department.name", read_only=True, allow_null=True)
+
+    class Meta:
+        model = Designation
+        fields = ["id", "name", "department", "department_name", "description", "created_at"]
+        read_only_fields = ["id", "department_name", "created_at"]
 
 
 class EmployeeDocumentSerializer(serializers.ModelSerializer):
     file = serializers.FileField(write_only=True)
     download_url = serializers.SerializerMethodField()
+    employee_name = serializers.CharField(source="employee.full_name", read_only=True)
+    employee_id_code = serializers.CharField(source="employee.employee_id", read_only=True)
 
     class Meta:
         model = EmployeeDocument
-        fields = ["id", "employee", "title", "category", "file", "download_url", "uploaded_at"]
-        read_only_fields = ["id", "uploaded_at"]
+        fields = [
+            "id",
+            "employee",
+            "employee_name",
+            "employee_id_code",
+            "title",
+            "category",
+            "file",
+            "description",
+            "download_url",
+            "uploaded_at",
+        ]
+        read_only_fields = ["id", "employee_name", "employee_id_code", "uploaded_at"]
 
     def get_download_url(self, instance):
         return reverse("employee-document-download", args=[instance.pk])
@@ -41,26 +75,75 @@ class EmployeeDocumentSerializer(serializers.ModelSerializer):
 
 class EmployeeSerializer(serializers.ModelSerializer):
     documents = EmployeeDocumentSerializer(many=True, read_only=True)
+    department_name = serializers.CharField(source="department.name", read_only=True, allow_null=True)
+    designation_name = serializers.CharField(source="designation.name", read_only=True, allow_null=True)
+    supervisor_name = serializers.CharField(source="supervisor.full_name", read_only=True, allow_null=True)
+    profile_photo_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Employee
         fields = [
             "id",
             "employee_id",
+            "first_name",
+            "middle_name",
+            "last_name",
             "full_name",
+            "date_of_birth",
+            "gender",
+            "nationality",
+            "marital_status",
+            "profile_photo",
+            "profile_photo_url",
             "phone",
             "email",
-            "nationality",
+            "emergency_contact_name",
+            "emergency_contact_relationship",
+            "emergency_contact_phone",
+            "current_address",
+            "permanent_address",
+            "department",
+            "department_name",
+            "designation",
+            "designation_name",
             "job_title",
+            "employment_type",
+            "joining_date",
+            "contract_start_date",
+            "contract_end_date",
+            "salary",
+            "status",
+            "supervisor",
+            "supervisor_name",
+            "work_location",
             "client_name",
             "origin_country",
             "destination",
-            "status",
+            "citizenship_number",
+            "passport_number",
+            "pan_tax_number",
+            "national_id_number",
             "documents",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "department_name",
+            "designation_name",
+            "supervisor_name",
+            "profile_photo_url",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_profile_photo_url(self, instance):
+        if instance.profile_photo:
+            try:
+                return instance.profile_photo.url
+            except Exception:
+                return ""
+        return ""
 
 
 class HiringRecordSerializer(serializers.ModelSerializer):
@@ -145,13 +228,13 @@ class HiringRecordSerializer(serializers.ModelSerializer):
         employee = validated_data.get("employee")
         client_name = validated_data.get("client_name") or (employee.client_name if employee else "")
         validated_data["client_name"] = client_name
-        request_user = self.context["request"].user
-        validated_data["hiring_person_name"] = (
-            validated_data.get("hiring_person_name")
-            or validated_data.get("hr_name")
-            or request_user.get_full_name()
-            or request_user.get_username()
-        )
+        request_user = self.context["request"].user if "request" in self.context else None
+
+        hiring_person = validated_data.get("hiring_person_name") or validated_data.get("hr_name")
+        if not hiring_person and request_user:
+            hiring_person = request_user.get_full_name() or request_user.get_username()
+        validated_data["hiring_person_name"] = hiring_person or "HR Officer"
+
         if employee is None:
             if not applicant_name:
                 raise serializers.ValidationError({"applicant_name": "Enter a name or link an existing employee."})
@@ -162,7 +245,7 @@ class HiringRecordSerializer(serializers.ModelSerializer):
                 employee_id=employee_number or f"JOIN-{uuid.uuid4().hex[:12].upper()}",
                 full_name=applicant_name,
                 phone=validated_data.get("mobile_number", ""),
-                nationality=validated_data.get("nationality", ""),
+                nationality=validated_data.get("nationality", "Nepali"),
                 job_title=validated_data.get("job_title", ""),
                 client_name=client_name,
                 created_by=request_user,
@@ -183,56 +266,84 @@ class BillingRecordSerializer(serializers.ModelSerializer):
             "employee",
             "employee_name",
             "description",
+            "amount_before_tax",
+            "tax_amount",
             "amount",
             "currency",
             "bill_date",
+            "due_date",
+            "payment_date",
             "status",
             "notes",
             "created_at",
+            "updated_at",
         ]
-        read_only_fields = ["id", "employee_name", "created_at"]
+        read_only_fields = ["id", "employee_name", "created_at", "updated_at"]
 
 
 class ExpenseLineItemSerializer(serializers.ModelSerializer):
-    product = serializers.PrimaryKeyRelatedField(queryset=ExpenseProduct.objects.all())
-    product_name = serializers.CharField(read_only=True)
+    product = serializers.PrimaryKeyRelatedField(queryset=ExpenseProduct.objects.all(), required=False, allow_null=True)
+    product_name = serializers.CharField()
     quantity = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal("0.01"))
-    unit_price = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    unit_price = serializers.DecimalField(max_digits=12, decimal_places=2)
     line_total = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
 
     class Meta:
         model = ExpenseLineItem
         fields = ["id", "product", "product_name", "quantity", "unit_price", "line_total"]
-        read_only_fields = ["id", "product_name", "unit_price", "line_total"]
+        read_only_fields = ["id", "line_total"]
 
 
 class ExpenseRecordSerializer(serializers.ModelSerializer):
     items = ExpenseLineItemSerializer(many=True, required=False)
+    employee_name = serializers.CharField(source="employee.full_name", read_only=True, allow_null=True)
+    department_name = serializers.CharField(source="department.name", read_only=True, allow_null=True)
+    receipt_url = serializers.SerializerMethodField()
 
     class Meta:
         model = ExpenseRecord
         fields = [
             "id",
             "reference_number",
-            "vendor_name",
+            "employee",
+            "employee_name",
+            "department",
+            "department_name",
+            "category_ref",
             "category",
+            "vendor_name",
             "description",
             "amount",
             "currency",
             "bill_date",
             "due_date",
             "paid_date",
+            "payment_method",
+            "invoice_number",
             "status",
+            "receipt_file",
+            "receipt_url",
+            "invoice_file",
             "notes",
+            "rejection_reason",
             "items",
+            "approved_by",
+            "approved_at",
             "created_at",
+            "updated_at",
         ]
-        read_only_fields = ["id", "category", "description", "amount", "currency", "created_at"]
+        read_only_fields = ["id", "employee_name", "department_name", "receipt_url", "approved_by", "approved_at", "created_at", "updated_at"]
+
+    def get_receipt_url(self, instance):
+        if instance.receipt_file:
+            return reverse("expense-receipt-download", args=[instance.pk])
+        return ""
 
     def validate_items(self, items):
-        currencies = {item["product"].currency for item in items}
-        if len(currencies) > 1:
-            raise serializers.ValidationError("All products on a bill must use the same currency.")
+        if items:
+            currencies = {item["product"].currency for item in items if item.get("product")}
+            if len(currencies) > 1:
+                raise serializers.ValidationError("All products on a bill must use the same currency.")
         return items
 
     @staticmethod
@@ -240,15 +351,17 @@ class ExpenseRecordSerializer(serializers.ModelSerializer):
         lines = []
         amount = Decimal("0.00")
         for item in items:
-            product = item["product"]
-            quantity = item["quantity"]
-            line_total = (quantity * product.unit_price).quantize(Decimal("0.01"))
+            product = item.get("product")
+            p_name = item.get("product_name") or (product.name if product else "Expense Item")
+            unit_price = item.get("unit_price") or (product.unit_price if product else Decimal("0.00"))
+            quantity = item.get("quantity", Decimal("1.00"))
+            line_total = (quantity * unit_price).quantize(Decimal("0.01"))
             amount += line_total
             lines.append({
                 "product": product,
-                "product_name": product.name,
+                "product_name": p_name,
                 "quantity": quantity,
-                "unit_price": product.unit_price,
+                "unit_price": unit_price,
                 "line_total": line_total,
             })
         return lines, amount
@@ -256,39 +369,49 @@ class ExpenseRecordSerializer(serializers.ModelSerializer):
     @transaction.atomic
     def create(self, validated_data):
         items = validated_data.pop("items", [])
-        if not items:
-            raise serializers.ValidationError({"items": "Add at least one product to the bill."})
-        lines, amount = self._line_totals(items)
-        validated_data["amount"] = amount
-        validated_data["currency"] = items[0]["product"].currency
-        validated_data["category"] = ", ".join(sorted({
-            item["product"].category.name for item in items
-        }))[:80]
-        validated_data["description"] = ", ".join(line["product_name"] for line in lines)[:240]
-        expense = ExpenseRecord.objects.create(**validated_data)
-        ExpenseLineItem.objects.bulk_create([
-            ExpenseLineItem(expense=expense, **line) for line in lines
-        ])
-        return expense
+        if items:
+            lines, amount = self._line_totals(items)
+            validated_data["amount"] = amount
+            if not validated_data.get("currency") and items[0].get("product"):
+                validated_data["currency"] = items[0]["product"].currency
+            if not validated_data.get("category"):
+                categories = {item["product"].category.name for item in items if item.get("product") and item["product"].category}
+                if categories:
+                    validated_data["category"] = ", ".join(sorted(categories))[:120]
+            if not validated_data.get("description"):
+                validated_data["description"] = ", ".join(line["product_name"] for line in lines)[:240]
+
+            expense = ExpenseRecord.objects.create(**validated_data)
+            ExpenseLineItem.objects.bulk_create([
+                ExpenseLineItem(expense=expense, **line) for line in lines
+            ])
+            return expense
+
+        # Fallback for direct expense creation without product catalog items
+        return super().create(validated_data)
 
     @transaction.atomic
     def update(self, instance, validated_data):
         items = validated_data.pop("items", None)
         for field, value in validated_data.items():
             setattr(instance, field, value)
+
         if items is not None:
-            if not items:
-                raise serializers.ValidationError({"items": "Add at least one product to the bill."})
-            lines, instance.amount = self._line_totals(items)
-            instance.currency = items[0]["product"].currency
-            instance.category = ", ".join(sorted({
-                item["product"].category.name for item in items
-            }))[:80]
-            instance.description = ", ".join(line["product_name"] for line in lines)[:240]
-            instance.items.all().delete()
-            ExpenseLineItem.objects.bulk_create([
-                ExpenseLineItem(expense=instance, **line) for line in lines
-            ])
+            if items:
+                lines, instance.amount = self._line_totals(items)
+                if not instance.currency and items[0].get("product"):
+                    instance.currency = items[0]["product"].currency
+                categories = {item["product"].category.name for item in items if item.get("product") and item["product"].category}
+                if categories:
+                    instance.category = ", ".join(sorted(categories))[:120]
+                instance.description = ", ".join(line["product_name"] for line in lines)[:240]
+                instance.items.all().delete()
+                ExpenseLineItem.objects.bulk_create([
+                    ExpenseLineItem(expense=instance, **line) for line in lines
+                ])
+            else:
+                instance.items.all().delete()
+
         instance.save()
         return instance
 
@@ -296,7 +419,7 @@ class ExpenseRecordSerializer(serializers.ModelSerializer):
 class ExpenseCategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = ExpenseCategory
-        fields = ["id", "name"]
+        fields = ["id", "name", "description"]
         read_only_fields = ["id"]
 
 
@@ -307,3 +430,24 @@ class ExpenseProductSerializer(serializers.ModelSerializer):
         model = ExpenseProduct
         fields = ["id", "name", "category", "category_name", "unit_price", "currency"]
         read_only_fields = ["id", "category_name"]
+
+
+class AuditLogSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source="user.username", read_only=True, allow_null=True)
+    action_display = serializers.CharField(source="get_action_display", read_only=True)
+
+    class Meta:
+        model = AuditLog
+        fields = [
+            "id",
+            "username",
+            "action",
+            "action_display",
+            "model_name",
+            "object_id",
+            "object_repr",
+            "timestamp",
+            "changes",
+            "ip_address",
+        ]
+        read_only_fields = fields

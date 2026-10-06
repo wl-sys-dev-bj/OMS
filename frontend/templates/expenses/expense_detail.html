@@ -1,0 +1,252 @@
+{% extends "partial/base.html" %}
+{% load static %}
+
+{% block title %}Expense Voucher · {{ expense.reference_number }}{% endblock %}
+
+{% block content %}
+<div class="app-shell">
+	<aside class="sidebar">
+		<a class="brand" href="{% url 'home' %}">
+			<span class="brand-mark">O</span>
+			<span><strong>OMS</strong><small>PEOPLE OPERATIONS</small></span>
+		</a>
+		<p class="nav-label">NAVIGATION</p>
+		<nav class="primary-nav">
+			<a class="nav-item" href="{% url 'home' %}"><span class="nav-icon">◫</span>Overview</a>
+			<a class="nav-item" href="{% url 'employee-list' %}"><span class="nav-icon">♙</span>Employees</a>
+			<a class="nav-item active" href="{% url 'expense-list' %}"><span class="nav-icon">💳</span>Expenses</a>
+			<a class="nav-item" href="{% url 'reports-home' %}"><span class="nav-icon">📊</span>Reports</a>
+		</nav>
+		<div class="sidebar-bottom">
+			<a class="logout-link" href="{% url 'logout' %}">Sign out <span aria-hidden="true">↗</span></a>
+		</div>
+	</aside>
+
+	<main class="main-area">
+		<header class="topbar">
+			<div>
+				<p class="eyebrow"><a href="{% url 'expense-list' %}" style="color: inherit; text-decoration: none;">EXPENSES</a> / <span style="color: var(--forest);">{{ expense.reference_number }}</span></p>
+				<h1>Expense Voucher: {{ expense.reference_number }}</h1>
+			</div>
+			<div class="topbar-meta" style="display: flex; gap: 8px; flex-wrap: wrap;">
+				<a class="button button-quiet" href="{% url 'expense-print' expense.pk %}" target="_blank">🖨 Print Voucher</a>
+				<a class="button button-quiet" href="{% url 'expense-pdf' expense.pk %}">📄 Download PDF</a>
+				{% if USER_ROLE == 'admin' or USER_ROLE == 'finance' or USER_ROLE == 'manager' or request.user.is_superuser %}
+				<a class="button button-dark" href="{% url 'expense-edit' expense.pk %}">✎ Edit</a>
+				{% endif %}
+				<a class="button button-quiet" href="{% url 'expense-list' %}">← Back to Register</a>
+			</div>
+		</header>
+
+		<!-- HEADER HERO SUMMARY -->
+		<section class="panel" style="margin-bottom: 20px; padding: 20px; display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap;">
+			<div>
+				<span style="font-size: 11px; font-weight: bold; color: var(--muted); text-transform: uppercase;">Total Voucher Amount</span>
+				<h2 style="margin: 4px 0 0; font-size: 28px; color: var(--forest);">{{ expense.currency }} {{ expense.amount|floatformat:2 }}</h2>
+				<p style="margin: 4px 0 0; color: var(--muted); font-size: 12px;">
+					<strong>Vendor:</strong> {{ expense.vendor_name|default:"Direct Reimbursement" }} · 
+					<strong>Category:</strong> {{ expense.category|default:"General" }} · 
+					<strong>Bill Date:</strong> {{ expense.bill_date|date:"d M Y" }}
+				</p>
+			</div>
+			<div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+				<span class="status-badge status-{{ expense.status }}" style="font-size: 13px; padding: 6px 14px;">{{ expense.get_status_display }}</span>
+				{% if expense.approved_by %}
+				<span style="font-size: 11px; color: var(--muted);">Approved by <strong>{{ expense.approved_by.get_full_name|default:expense.approved_by.username }}</strong> on {{ expense.approved_at|date:"d M Y" }}</span>
+				{% endif %}
+			</div>
+		</section>
+
+		<div class="workspace-grid" style="grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.7fr);">
+			
+			<!-- LEFT COLUMN -->
+			<div style="display: grid; gap: 18px;">
+				
+				<!-- 1. VOUCHER INFORMATION -->
+				<section class="panel">
+					<div class="panel-heading">
+						<div>
+							<p class="eyebrow">DETAILS</p>
+							<h3>Voucher Summary</h3>
+						</div>
+					</div>
+					<div style="padding: 16px;">
+						<dl class="employee-detail-grid">
+							<div><dt>Reference Number</dt><dd><strong>{{ expense.reference_number }}</strong></dd></div>
+							<div><dt>Vendor / Payee</dt><dd>{{ expense.vendor_name|default:"—" }}</dd></div>
+							<div><dt>Claimant Employee</dt><dd>{% if expense.employee %}<a href="{% url 'employee-detail' expense.employee.pk %}"><strong>{{ expense.employee.full_name }}</strong> ({{ expense.employee.employee_id }})</a>{% else %}—{% endif %}</dd></div>
+							<div><dt>Department</dt><dd>{{ expense.department.name|default:"—" }}</dd></div>
+							<div><dt>Category</dt><dd>{{ expense.category|default:"—" }}</dd></div>
+							<div><dt>Payment Method</dt><dd>{{ expense.get_payment_method_display }}</dd></div>
+							<div><dt>Bill Date</dt><dd>{{ expense.bill_date|date:"d M Y" }}</dd></div>
+							<div><dt>Due Date</dt><dd>{{ expense.due_date|date:"d M Y"|default:"—" }}</dd></div>
+							<div><dt>Paid Date</dt><dd>{{ expense.paid_date|date:"d M Y"|default:"—" }}</dd></div>
+							<div><dt>Invoice Number</dt><dd>{{ expense.invoice_number|default:"—" }}</dd></div>
+							<div style="grid-column: 1 / -1;"><dt>Description / Purpose</dt><dd>{{ expense.description|default:"General expense" }}</dd></div>
+							{% if expense.notes %}
+							<div style="grid-column: 1 / -1;"><dt>Internal Notes</dt><dd>{{ expense.notes }}</dd></div>
+							{% endif %}
+							{% if expense.rejection_reason %}
+							<div style="grid-column: 1 / -1;"><dt style="color: var(--coral);">Rejection Reason</dt><dd style="color: var(--coral);">{{ expense.rejection_reason }}</dd></div>
+							{% endif %}
+						</dl>
+					</div>
+				</section>
+
+				<!-- 2. ITEMIZED PRODUCTS / LINE ITEMS -->
+				<section class="panel">
+					<div class="panel-heading">
+						<div>
+							<p class="eyebrow">BREAKDOWN</p>
+							<h3>Itemized Line Items</h3>
+						</div>
+					</div>
+					<div class="table-wrap">
+						<table>
+							<thead>
+								<tr>
+									<th>ITEM / PRODUCT</th>
+									<th>QTY</th>
+									<th>UNIT PRICE</th>
+									<th>LINE TOTAL</th>
+								</tr>
+							</thead>
+							<tbody>
+								{% for item in items %}
+								<tr>
+									<td><strong>{{ item.product_name }}</strong></td>
+									<td>{{ item.quantity|floatformat:2 }}</td>
+									<td>{{ expense.currency }} {{ item.unit_price|floatformat:2 }}</td>
+									<td><strong>{{ expense.currency }} {{ item.line_total|floatformat:2 }}</strong></td>
+								</tr>
+								{% empty %}
+								<tr>
+									<td colspan="4" class="empty-cell">Single direct expense (No itemized catalog products attached).</td>
+								</tr>
+								{% endfor %}
+							</tbody>
+							<tfoot>
+								<tr style="background: #edf3ee; font-weight: bold;">
+									<td colspan="3" style="text-align: right; padding: 12px;">TOTAL VOUCHER AMOUNT:</td>
+									<td style="padding: 12px; font-size: 14px; color: var(--forest);">{{ expense.currency }} {{ expense.amount|floatformat:2 }}</td>
+								</tr>
+							</tfoot>
+						</table>
+					</div>
+				</section>
+
+			</div>
+
+			<!-- RIGHT COLUMN -->
+			<div style="display: grid; gap: 18px; align-content: start;">
+				
+				<!-- WORKFLOW & APPROVAL ACTIONS -->
+				<section class="panel">
+					<div class="panel-heading">
+						<div>
+							<p class="eyebrow">WORKFLOW</p>
+							<h3>Approval Actions</h3>
+						</div>
+					</div>
+					<div style="padding: 16px; display: grid; gap: 10px;">
+						{% if expense.status == 'pending' or expense.status == 'submitted' or expense.status == 'draft' %}
+							{% if USER_ROLE == 'admin' or USER_ROLE == 'manager' or USER_ROLE == 'finance' or request.user.is_superuser %}
+							<form method="POST" action="{% url 'expense-approve' expense.pk %}">
+								{% csrf_token %}
+								<button type="submit" class="button button-dark" style="width: 100%; justify-content: center; background: #2f7450;">✓ Approve Expense</button>
+							</form>
+							
+							<details style="border-top: 1px solid var(--line); padding-top: 8px;">
+								<summary style="cursor: pointer; color: #a55542; font-weight: bold; font-size: 11px;">✕ Reject Expense...</summary>
+								<form method="POST" action="{% url 'expense-reject' expense.pk %}" style="display: grid; gap: 6px; margin-top: 8px;">
+									{% csrf_token %}
+									<textarea name="reason" placeholder="Reason for rejection..." rows="2" required style="width: 100%; padding: 6px; border: 1px solid var(--line); border-radius: 4px; font-size: 11px;"></textarea>
+									<button type="submit" class="button" style="background: #a55542; color: #fff; height: 32px; font-size: 11px;">Confirm Rejection</button>
+								</form>
+							</details>
+							{% else %}
+							<p class="empty-note" style="padding: 0;">Awaiting manager / finance review.</p>
+							{% endif %}
+						{% endif %}
+
+						{% if expense.status == 'approved' or expense.status == 'unpaid' %}
+							{% if USER_ROLE == 'admin' or USER_ROLE == 'finance' or request.user.is_superuser %}
+							<form method="POST" action="{% url 'expense-mark-paid' expense.pk %}">
+								{% csrf_token %}
+								<button type="submit" class="button button-dark" style="width: 100%; justify-content: center;">💰 Mark as Paid</button>
+							</form>
+							{% endif %}
+						{% endif %}
+
+						{% if expense.status == 'paid' %}
+						<div style="padding: 10px; background: #e2f2e6; color: #2f7450; border-radius: 4px; font-weight: bold; font-size: 12px; text-align: center;">
+							✓ Paid on {{ expense.paid_date|date:"d M Y"|default:"Recently" }}
+						</div>
+						{% endif %}
+					</div>
+				</section>
+
+				<!-- ATTACHMENTS (RECEIPT & INVOICE) -->
+				<section class="panel">
+					<div class="panel-heading">
+						<div>
+							<p class="eyebrow">FILES</p>
+							<h3>Receipts & Attachments</h3>
+						</div>
+					</div>
+					<div style="padding: 16px; display: grid; gap: 10px;">
+						{% if expense.receipt_file %}
+						<div style="padding: 10px; border: 1px solid var(--line); border-radius: 4px;">
+							<strong>Receipt Attached</strong>
+							<p style="margin: 4px 0 8px; font-size: 11px; color: var(--muted);">Original payment receipt or voucher scan.</p>
+							<a class="button button-quiet" style="height: 30px; font-size: 11px;" href="{% url 'expense-receipt-download' expense.pk %}" target="_blank">📥 Download Receipt</a>
+						</div>
+						{% else %}
+						<p class="empty-note" style="padding: 0;">No receipt file attached.</p>
+						{% endif %}
+					</div>
+				</section>
+
+				<!-- AUDIT TRAIL -->
+				<section class="panel">
+					<div class="panel-heading">
+						<div>
+							<p class="eyebrow">HISTORY</p>
+							<h3>Audit Trail</h3>
+						</div>
+					</div>
+					<div style="padding: 12px 16px;">
+						{% for log in audit_logs %}
+						<div style="padding: 6px 0; border-bottom: 1px solid #edf0ed; font-size: 11px;">
+							<div style="display: flex; justify-content: space-between;">
+								<strong>{{ log.get_action_display }}</strong>
+								<span style="color: var(--muted);">{{ log.timestamp|date:"d M, H:i" }}</span>
+							</div>
+							<span style="color: var(--muted);">By: {{ log.user.username|default:"System" }}</span>
+							{% if log.changes %}<p style="margin: 2px 0 0; color: #444;">{{ log.changes }}</p>{% endif %}
+						</div>
+						{% empty %}
+						<p class="empty-note" style="padding: 0;">No audit events recorded.</p>
+						{% endfor %}
+					</div>
+				</section>
+
+				<!-- DELETE -->
+				{% if USER_ROLE == 'admin' or USER_ROLE == 'finance' or request.user.is_superuser %}
+				<section class="panel" style="border-color: #f1cfc8;">
+					<div style="padding: 16px;">
+						<h4 style="margin: 0 0 8px; color: #a55542;">Delete Record</h4>
+						<form method="POST" action="{% url 'expense-delete' expense.pk %}" onsubmit="return confirm('Delete expense voucher {{ expense.reference_number }}?');">
+							{% csrf_token %}
+							<button type="submit" class="button" style="background: #a55542; color: #fff; width: 100%;">Delete Expense</button>
+						</form>
+					</div>
+				</section>
+				{% endif %}
+
+			</div>
+
+		</div>
+	</main>
+</div>
+{% endblock %}

@@ -1,0 +1,162 @@
+{% extends "partial/base.html" %}
+{% load static %}
+
+{% block title %}Employee Directory · {{ COMPANY_NAME }}{% endblock %}
+
+{% block content %}
+<div class="app-shell">
+	<aside class="sidebar">
+		<a class="brand" href="{% url 'home' %}" aria-label="OMS Operations home">
+			<span class="brand-mark">O</span>
+			<span><strong>OMS</strong><small>PEOPLE OPERATIONS</small></span>
+		</a>
+		<p class="nav-label">WORKSPACE</p>
+		<nav class="primary-nav">
+			<a class="nav-item" href="{% url 'home' %}"><span class="nav-icon">◫</span>Overview</a>
+			<a class="nav-item active" href="{% url 'employee-list' %}"><span class="nav-icon">♙</span>Employees</a>
+			<a class="nav-item" href="{% url 'expense-list' %}"><span class="nav-icon">💳</span>Expenses</a>
+			<a class="nav-item" href="{% url 'reports-home' %}"><span class="nav-icon">📊</span>Reports</a>
+			{% if request.user.is_superuser or USER_ROLE == 'admin' %}
+			<a class="nav-item" href="{% url 'audit-logs' %}"><span class="nav-icon">📋</span>Audit Trail</a>
+			<a class="nav-item" href="{% url 'admin:index' %}" target="_blank"><span class="nav-icon">⚙</span>Django Admin</a>
+			{% endif %}
+		</nav>
+		<div class="sidebar-bottom">
+			<div class="user-chip">
+				<span class="user-avatar">{{ request.user.username|slice:':1'|upper }}</span>
+				<span>
+					<strong>{{ request.user.get_full_name|default:request.user.username }}</strong>
+					<small>{{ USER_ROLE|upper }}</small>
+				</span>
+			</div>
+			<a class="logout-link" href="{% url 'logout' %}">Sign out <span aria-hidden="true">↗</span></a>
+		</div>
+	</aside>
+
+	<main class="main-area">
+		<header class="topbar">
+			<div>
+				<p class="eyebrow">WORKFORCE / <span style="color: var(--forest);">DIRECTORY</span></p>
+				<h1>Employee Directory</h1>
+			</div>
+			<div class="topbar-meta">
+				<span>Total Records: <strong>{{ total_count }}</strong></span>
+				<a class="button button-dark" href="{% url 'employee-create' %}">＋ Add new employee</a>
+			</div>
+		</header>
+
+		<!-- FILTER & SEARCH BAR -->
+		<section class="panel" style="margin-bottom: 20px;">
+			<form method="GET" action="{% url 'employee-list' %}" class="filter-form" style="display: flex; flex-wrap: wrap; gap: 12px; padding: 16px; align-items: flex-end;">
+				<div style="flex: 2; min-width: 200px;">
+					<label style="display: block; margin-bottom: 4px; font-weight: bold; font-size: 11px;">Search Directory</label>
+					<input type="search" name="search" value="{{ search }}" placeholder="Search by ID, name, phone, email, client..." style="width: 100%; height: 36px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 4px;">
+				</div>
+				<div style="flex: 1; min-width: 140px;">
+					<label style="display: block; margin-bottom: 4px; font-weight: bold; font-size: 11px;">Department</label>
+					<select name="department" style="width: 100%; height: 36px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 4px;">
+						<option value="">All Departments</option>
+						{% for dept in departments %}
+						<option value="{{ dept.id }}" {% if current_department == dept.id|stringformat:"s" %}selected{% endif %}>{{ dept.name }}</option>
+						{% endfor %}
+					</select>
+				</div>
+				<div style="flex: 1; min-width: 130px;">
+					<label style="display: block; margin-bottom: 4px; font-weight: bold; font-size: 11px;">Status</label>
+					<select name="status" style="width: 100%; height: 36px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 4px;">
+						<option value="">All Statuses</option>
+						{% for val, label in status_choices %}
+						<option value="{{ val }}" {% if current_status == val %}selected{% endif %}>{{ label }}</option>
+						{% endfor %}
+					</select>
+				</div>
+				<div style="flex: 1; min-width: 130px;">
+					<label style="display: block; margin-bottom: 4px; font-weight: bold; font-size: 11px;">Type</label>
+					<select name="employment_type" style="width: 100%; height: 36px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 4px;">
+						<option value="">All Types</option>
+						{% for val, label in employment_type_choices %}
+						<option value="{{ val }}" {% if current_employment_type == val %}selected{% endif %}>{{ label }}</option>
+						{% endfor %}
+					</select>
+				</div>
+				<div style="display: flex; gap: 6px;">
+					<button type="submit" class="button button-dark" style="height: 36px;">Filter</button>
+					<a href="{% url 'employee-list' %}" class="button button-quiet" style="height: 36px;">Reset</a>
+				</div>
+				<div style="margin-left: auto; display: flex; gap: 6px;">
+					<a href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}export=excel" class="button button-quiet" style="height: 36px;" title="Export filtered list to Excel">📊 Excel</a>
+					<a href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}export=csv" class="button button-quiet" style="height: 36px;" title="Export filtered list to CSV">📄 CSV</a>
+					<a href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}export=pdf" class="button button-quiet" style="height: 36px;" title="Download PDF Report">📑 PDF</a>
+				</div>
+			</form>
+		</section>
+
+		<!-- EMPLOYEE DATA TABLE -->
+		<section class="panel">
+			<div class="table-wrap">
+				<table>
+					<thead>
+						<tr>
+							<th>EMPLOYEE</th>
+							<th>CONTACT</th>
+							<th>DEPARTMENT / TITLE</th>
+							<th>CLIENT ACCOUNT</th>
+							<th>JOINING DATE</th>
+							<th>STATUS</th>
+							<th style="text-align: right;">ACTIONS</th>
+						</tr>
+					</thead>
+					<tbody>
+						{% for emp in employees %}
+						<tr>
+							<td>
+								<a href="{% url 'employee-detail' emp.pk %}" style="text-decoration: none; color: inherit;">
+									<strong class="table-primary">{{ emp.full_name }}</strong>
+									<span class="table-secondary">{{ emp.employee_id }} · {{ emp.nationality }}</span>
+								</a>
+							</td>
+							<td>
+								<span>{{ emp.phone }}</span>
+								{% if emp.email %}<span class="table-secondary">{{ emp.email }}</span>{% endif %}
+							</td>
+							<td>
+								<strong>{{ emp.department.name|default:"—" }}</strong>
+								<span class="table-secondary">{{ emp.designation.name|default:emp.job_title|default:"Staff" }}</span>
+							</td>
+							<td>{{ emp.client_name|default:"Internal Operations" }}</td>
+							<td>{{ emp.joining_date|date:"d M Y"|default:"—" }}</td>
+							<td><span class="status-badge status-{{ emp.status }}">{{ emp.get_status_display }}</span></td>
+							<td style="text-align: right; white-space: nowrap;">
+								<a class="row-action" href="{% url 'employee-detail' emp.pk %}">View</a>
+								<a class="row-action" href="{% url 'employee-edit' emp.pk %}">Edit</a>
+								<a class="row-action" href="{% url 'employee-print' emp.pk %}" target="_blank">Print</a>
+								<a class="row-action" href="{% url 'employee-pdf' emp.pk %}">PDF</a>
+							</td>
+						</tr>
+						{% empty %}
+						<tr>
+							<td colspan="7" class="empty-cell">No employee records match the given criteria.</td>
+						</tr>
+						{% endfor %}
+					</tbody>
+				</table>
+			</div>
+
+			<!-- PAGINATION -->
+			{% if page_obj.has_other_pages %}
+			<div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-top: 1px solid var(--line);">
+				<span style="color: var(--muted); font-size: 12px;">Showing page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+				<div style="display: flex; gap: 6px;">
+					{% if page_obj.has_previous %}
+					<a class="button button-quiet" style="height: 32px; font-size: 11px;" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if current_department %}&department={{ current_department }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}">← Previous</a>
+					{% endif %}
+					{% if page_obj.has_next %}
+					<a class="button button-quiet" style="height: 32px; font-size: 11px;" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if current_department %}&department={{ current_department }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}">Next →</a>
+					{% endif %}
+				</div>
+			</div>
+			{% endif %}
+		</section>
+	</main>
+</div>
+{% endblock %}

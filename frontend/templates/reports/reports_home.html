@@ -1,0 +1,70 @@
+{% extends "partial/base.html" %}
+{% load static %}
+
+{% block title %}Reports & Analytics Hub · {{ COMPANY_NAME }}{% endblock %}
+
+{% block content %}
+<div class="app-shell">
+	<aside class="sidebar">
+		<a class="brand" href="{% url 'home' %}">
+			<span class="brand-mark">O</span>
+			<span><strong>OMS</strong><small>PEOPLE OPERATIONS</small></span>
+		</a>
+		<p class="nav-label">WORKSPACE</p>
+		<nav class="primary-nav">
+			<a class="nav-item" href="{% url 'home' %}"><span class="nav-icon">◫</span>Overview</a>
+			<a class="nav-item" href="{% url 'employee-list' %}"><span class="nav-icon">♙</span>Employees</a>
+			<a class="nav-item" href="{% url 'expense-list' %}"><span class="nav-icon">💳</span>Expenses</a>
+			<a class="nav-item active" href="{% url 'reports-home' %}"><span class="nav-icon">📊</span>Reports</a>
+			{% if request.user.is_superuser or USER_ROLE == 'admin' %}
+			<a class="nav-item" href="{% url 'audit-logs' %}"><span class="nav-icon">📋</span>Audit Trail</a>
+			<a class="nav-item" href="{% url 'admin:index' %}" target="_blank"><span class="nav-icon">⚙</span>Django Admin</a>
+			{% endif %}
+		</nav>
+		<div class="sidebar-bottom">
+			<a class="logout-link" href="{% url 'logout' %}">Sign out <span aria-hidden="true">↗</span></a>
+		</div>
+	</aside>
+
+	<main class="main-area">
+		<header class="topbar">
+			<div>
+				<p class="eyebrow">ANALYTICS & EXPORTS / <span style="color: var(--forest);">REPORTS HUB</span></p>
+				<h1>Reports & Analytics</h1>
+			</div>
+		</header>
+
+		<div class="overview-grid" style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin-top: 10px;">
+			
+			<!-- EMPLOYEE REPORTS CARD -->
+			<section class="panel" style="padding: 24px;">
+				<div style="font-size: 32px; margin-bottom: 12px;">👥</div>
+				<h2 style="margin: 0 0 8px; font-size: 20px;">Workforce & Employee Reports</h2>
+				<p style="color: var(--muted); margin: 0 0 20px; font-size: 13px;">
+					Analyze workforce distribution by department, employment status, designation, and client assignments. Generate official headcount rosters.
+				</p>
+				<div style="display: flex; gap: 10px; flex-wrap: wrap;">
+					<a href="{% url 'reports-employees' %}" class="button button-dark">View Employee Reports →</a>
+					<a href="{% url 'reports-employees' %}?export=pdf" class="button button-quiet">📄 PDF Roster</a>
+					<a href="{% url 'reports-employees' %}?export=excel" class="button button-quiet">📊 Excel Export</a>
+				</div>
+			</section>
+
+			<!-- EXPENSE REPORTS CARD -->
+			<section class="panel" style="padding: 24px;">
+				<div style="font-size: 32px; margin-bottom: 12px;">💰</div>
+				<h2 style="margin: 0 0 8px; font-size: 20px;">Expense & Financial Reports</h2>
+				<p style="color: var(--muted); margin: 0 0 20px; font-size: 13px;">
+					Audit and analyze company spending across categories, vendors, departments, and date ranges. Export financial balance summaries.
+				</p>
+				<div style="display: flex; gap: 10px; flex-wrap: wrap;">
+					<a href="{% url 'reports-expenses' %}" class="button button-dark">View Financial Reports →</a>
+					<a href="{% url 'reports-expenses' %}?export=pdf" class="button button-quiet">📄 PDF Statement</a>
+					<a href="{% url 'reports-expenses' %}?export=excel" class="button button-quiet">📊 Excel Register</a>
+				</div>
+			</section>
+
+		</div>
+	</main>
+</div>
+{% endblock %}
